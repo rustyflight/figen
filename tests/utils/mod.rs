@@ -41,7 +41,7 @@ impl MockLoader {
 
 impl PropertyLoader for MockLoader {
     #[cfg(feature = "std")]
-    fn load_str_value(&self, key: &str) -> Result<Option<String>> {
+    fn load_str_value(&self, key: &str) -> Result<String> {
         println!("Loading [ str] value for key [{}]", key);
         self.attempted_keys.borrow_mut().push(key.to_string());
         self.data.get(key).cloned().ok_or(figen::error::Error::NotFound)

@@ -18,6 +18,8 @@ pub trait BindPath {
     fn new() -> Self;
     fn push(&mut self, key: &str);
     fn pop(&mut self);
+    fn push_array_index(&mut self, key: &str);
+    fn pop_array_index(&mut self);
     fn current_path(&self) -> &str;
 }
 
@@ -50,6 +52,21 @@ impl<const N: usize> BindPath for NoStdBindPath<N> {
             self.path.clear();
         }
     }
+
+    fn push_array_index(&mut self, key: &str) {
+        self.path.push('[').expect("Failed to push array index opening bracket");
+        self.path.push_str(key).expect("Failed to push array index key");
+        self.path.push(']').expect("Failed to push array index closing bracket");
+    }
+
+    fn pop_array_index(&mut self) {
+        if let Some(last_bracket) = self.path.rfind('[') {
+            self.path.truncate(last_bracket);
+        } else {
+            self.path.clear();
+        }
+    }
+
 
     fn current_path(&self) -> &str {
         self.path.as_str()
@@ -88,6 +105,21 @@ impl BindPath for StdBindPath {
             self.path.clear();
         }
     }
+
+    fn push_array_index(&mut self, key: &str) {
+        self.path.push('[');
+        self.path.push_str(key);
+        self.path.push(']');
+    }
+
+    fn pop_array_index(&mut self) {
+        if let Some(last_bracket) = self.path.rfind('[') {
+            self.path.truncate(last_bracket);
+        } else {
+            self.path.clear();
+        }
+    }
+
 
     fn current_path(&self) -> &str {
         self.path.as_str()

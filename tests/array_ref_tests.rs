@@ -22,8 +22,8 @@ struct Nested {
 #[test]
 fn should_load_array_ref() {
     let loader = utils::MockLoader::new()
-        .with_data("my_array.0.field1", "1")
-        .with_data("my_array.0.field2", "2")
+        .with_data("my_array[0].field1", "1")
+        .with_data("my_array[0].field2", "2")
         .with_data("array_ref", "NESTED_0");
 
     let config  = figen::load_config::<ArrayRefConfig, utils::MockLoader, utils::BindPathImpl>(&loader).unwrap();
@@ -35,8 +35,8 @@ fn should_load_array_ref() {
 #[test]
 fn should_err_not_found() {
     let loader = utils::MockLoader::new()
-        .with_data("my_array.0.field1", "1")
-        .with_data("my_array.0.field2", "2")
+        .with_data("my_array[0]field1", "1")
+        .with_data("my_array[0]field2", "2")
         .with_data("array_ref", "NESTED_1"); // Non Existing index
 
     let config  = figen::load_config::<ArrayRefConfig, utils::MockLoader, utils::BindPathImpl>(&loader);
@@ -48,8 +48,8 @@ fn should_err_not_found() {
 #[test]
 fn should_return_none_for_optional_ref() {
     let loader = utils::MockLoader::new()
-        .with_data("my_array.0.field1", "1")
-        .with_data("my_array.0.field2", "2")
+        .with_data("my_array[0]field1", "1")
+        .with_data("my_array[0]field2", "2")
         .with_data("optional_array_ref", "NESTED_1"); // Non Existing index
 
     let config  = figen::load_config::<ArrayRefConfig, utils::MockLoader, utils::BindPathImpl>(&loader);

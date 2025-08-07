@@ -158,8 +158,7 @@ where
         if let Some(key) = key {
             let mut ref_path = T::new();
             ref_path.push(self.array_ref);
-            ref_path.push(key);
-
+            ref_path.push_array_index(key);
             self.value.bind(&mut ref_path, loader)?;
         }
 
