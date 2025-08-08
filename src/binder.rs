@@ -6,6 +6,21 @@ use core::mem::MaybeUninit;
 pub const MAX_ARRAY_SIZE: usize = 1024;
 const MAX_ARRAY_KEY_SIZE_STR: usize = 4;
 
+pub struct BindContext<T, U> {
+    pub path: T,
+    pub loader: U,
+}
+
+impl<T, U> BindContext<T, U>
+where
+    T: BindPath,
+    U: PropertyLoader,
+{
+    pub fn new(path: T, loader: U) -> Self {
+        Self { path, loader }
+    }
+}
+
 pub trait ConfigBinder<T, U>
 where
     Self: Sized,
@@ -15,6 +30,7 @@ where
     fn bind(&mut self, path: &mut T, loader: &U) -> crate::error::Result<()>;
 }
 
+/// ConfigBinder implementation for [std::string::String] types.
 #[cfg(feature = "std")]
 impl<T, U> ConfigBinder<T, U> for std::string::String
 where
@@ -28,6 +44,10 @@ where
     }
 }
 
+/// ConfigBinder implementation for heapless::String.
+/// This implementation allows for binding a `heapless::String` to a configuration backend,
+/// loading a string value from the backend and storing it in the `heapless::String`.
+/// It is designed to work in environments without the standard library, such as embedded systems.
 #[cfg(not(feature = "std"))]
 impl<const N: usize, T, U> ConfigBinder<T, U> for heapless::String<N>
 where
@@ -46,6 +66,9 @@ pub enum ArrayConfigIndicesMode<'a> {
     Custom(&'a [&'a str]),
 }
 
+/// Binder for arrays in configuration.
+/// This binder allows for binding to an array of items in the configuration backend using either zero-based indexing or custom indices.
+/// It supports binding to a fixed-size array of items, where each item can be of any type that implements the `ConfigBinder` trait.
 pub struct ArrayConfigBinder<'a, T> {
     mode: ArrayConfigIndicesMode<'a>,
     items: &'a mut [T],
@@ -133,6 +156,9 @@ impl<'a, T> ArrayRefBinder<'a, T> {
     }
 }
 
+/// ConfigBinder implementation for binding array references.
+/// This binder allows for binding to a specific array reference in the configuration backend,
+/// with an optional prefix to strip from the array index.
 impl<'a, T, U, B> ConfigBinder<T, U> for ArrayRefBinder<'a, B>
 where
     B: ConfigBinder<T, U>,
@@ -163,6 +189,7 @@ where
     }
 }
 
+/// ConfigBinder implementation for boolean values.
 impl<T, U> ConfigBinder<T, U> for bool
 where
     T: BindPath,
@@ -184,6 +211,7 @@ impl Numeric for i16 {}
 impl Numeric for i8 {}
 impl Numeric for u8 {}
 
+/// ConfigBinder implementation for numeric types that can be converted from i32.
 impl<N, T, U> ConfigBinder<T, U> for N
 where
     N: Numeric + TryFrom<i32>,
@@ -201,6 +229,9 @@ where
     }
 }
 
+/// ConfigBinder implementation for `Option<V>` where `V` is another type that implements `ConfigBinder`.
+/// This allows for optional configuration values that may or may not be present in the configuration backend.
+/// If the value is not found, it sets the option to `None`
 impl<T, U, V> ConfigBinder<T, U> for Option<V>
 where
     T: BindPath,

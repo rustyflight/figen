@@ -1,3 +1,43 @@
+//! # figen
+//! This crate provides a way to define and load configurations in Rust, allowing for structured configuration management.
+//! It supports both standard and no-std environments, making it versatile for various applications.
+//!
+//! # Example
+//! The following example demonstrates how to define a configuration structure using the `Configuration` derive macro and load it using a custom property loader.
+//! The `Configuration` derive macro automatically generates the necessary bindings for the configuration fields, allowing you to easily manage and load configurations from various sources.
+//! ```rust
+//! use figen::{Configuration, load_config};
+//!
+//! #[derive(Configuration, Debug, Default)]
+//! struct MyConfig {
+//!     #[property]
+//!     my_field: String,
+//! }
+//!
+//! fn main() {
+//!     let loader = MyPropertyLoader::new(); // Implement your own PropertyLoader
+//!     let config: MyConfig = load.config::<MyConfig, MyPropertyLoader, StdBindBath>(&loader)
+//!         .expect("Failed to load configuration");
+//!     println!("{:?}", config);
+//! }
+//! ```
+//!
+//! A more typical usage would involve using the `config_registry` macro to define a configuration registry, which also generates the necessary bindings and structs for you.
+//! ```rust
+//! use figen::config_registry;
+//! config_registry!(
+//!     version = 1
+//!     str_property("my_str", MyGroup, default = "default_value", max_len = 10)
+//!     num_property("my_nested.prop", MyGroup, default = 42)
+//! );
+//!
+//! fn main() {
+//!     let loader = MyPropertyLoader::new(); // Implement your own PropertyLoader
+//!     let config: MyGroupConfig = figen::load_config::<MyGroupConfig, MyPropertyLoader, StdBindBath>(&loader)
+//!        .expect("Failed to load configuration");
+//!     println!("{:?}", config);
+//! }
+//! ```
 #![cfg_attr(not(feature = "std"), no_std)]
 extern crate alloc;
 
@@ -10,7 +50,8 @@ use binder::ConfigBinder;
 use loader::PropertyLoader;
 
 // Re-export
-pub use figen_proc_macros::expand_config_registry;
+pub use crate::error::Result;
+pub use figen_proc_macros::expand_config_registry as config_registry;
 pub use figen_proc_macros::Configuration;
 
 pub trait BindPath {
@@ -130,7 +171,27 @@ impl BindPath for StdBindPath {
     }
 }
 
-pub fn load_config<T: ConfigBinder<P, U> + Default, U: PropertyLoader, P: BindPath>(property_loader: &U) -> error::Result<T> {
+#[cfg(not(feature = "std"))]
+type BindPathImpl = NoStdBindPath<64>;
+#[cfg(feature = "std")]
+type BindPathImpl = StdBindPath;
+
+#[inline(always)]
+pub fn load_config<T, U>(property_loader: &U) -> error::Result<T>
+where
+    T: ConfigBinder<BindPathImpl, U> + Default,
+    U: PropertyLoader,
+{
+    load_config_using_path(property_loader)
+}
+
+pub fn load_config_using_path<T, U, P>(property_loader: &U) -> error::Result<T>
+where
+    T: ConfigBinder<P, U> + Default,
+    U: PropertyLoader,
+    P: BindPath,
+{
+    // Create a new path and config instance to bind to
     let mut current_path = P::new();
     let mut config = T::default();
 

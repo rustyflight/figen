@@ -1,8 +1,8 @@
-use figen::expand_config_registry;
+use figen::config_registry;
 
 mod utils;
 
-expand_config_registry!(
+config_registry!(
     version = 1
 
     str_property("str_prop", Group1, default = "abc", max_len = 4)
@@ -39,7 +39,7 @@ pub fn test_config_binding() {
         .with_data("deeply.nested.prop", "200")
         .with_data("deeply.nested.prop2", "ghi");
 
-    let config: Group1Config = figen::load_config::<Group1Config, utils::MockLoader, utils::BindPathImpl>(&loader)
+    let config: Group1Config = figen::load_config(&loader)
         .expect("Failed to load configuration");
 
     assert_eq!(config.str_prop, "xyz");

@@ -22,7 +22,7 @@ struct MyConfig {
 fn should_attempt_to_load_keys() {
     let loader = utils::MockLoader::new();
 
-    let _ = figen::load_config::<MyConfig, utils::MockLoader, utils::BindPathImpl>(&loader);
+    let _: figen::Result<MyConfig> = figen::load_config(&loader);
     let attempted_keys = loader.get_attempted_keys();
 
     let expected_keys = vec![
@@ -50,7 +50,7 @@ fn should_load_config_values() {
         .with_data("custom_indexed[i1]", "30")
         .with_data("custom_indexed[i2]", "40");
 
-    let config: MyConfig = figen::load_config::<MyConfig, utils::MockLoader, utils::BindPathImpl>(&loader).expect("Failed to load configuration");
+    let config: MyConfig = figen::load_config(&loader).expect("Failed to load configuration");
 
     assert_eq!(config.i32_field, 1234);
     assert_eq!(config.bool_field, false);
@@ -79,7 +79,7 @@ fn should_err_when_required_property_missing() {
         .with_data("optional_field", "200")
         .with_data("optional_field2", "300");
 
-    let result = figen::load_config::<TestConfig, utils::MockLoader, utils::BindPathImpl>(&loader);
+    let result: figen::Result<TestConfig> = figen::load_config(&loader);
 
     assert!(result.is_err(), "Expected an error when required property is missing and no default provided");
     let err = result.unwrap_err();

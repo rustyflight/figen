@@ -7,12 +7,6 @@ use figen::error::Result;
 use figen::loader::PropertyLoader;
 
 
-#[cfg(not(feature = "std"))]
-pub type BindPathImpl = figen::NoStdBindPath<128>;
-
-#[cfg(feature = "std")]
-pub type BindPathImpl = figen::StdBindPath;
-
 #[cfg(feature = "std")]
 pub type StringType = std::string::String;
 
