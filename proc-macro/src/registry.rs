@@ -30,7 +30,6 @@ struct ScalarProperty {
     ty: Type,
     default_value: Option<Expr>,
     optional: bool,
-    custom_ty: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -140,26 +139,6 @@ fn expand_field(prop: &PropertyDefinition, as_array_element: bool) -> TokenStrea
 fn expand_property(prop: &PropertyDefinition, parent_is_optional: bool) -> TokenStream {
     match prop {
         PropertyDefinition::Struct(s) => {
-            // Collect all the custom scalar fields and implement the Binder for them
-            // This is done to ensure that the Binder is implemented for all custom types
-            let custom_binders = s
-                .fields
-                .iter()
-                .filter(|f| {
-                    if let PropertyDefinition::Scalar(scalar) = f {
-                        scalar.custom_ty
-                    } else {
-                        false
-                    }
-                })
-                .map(|f| {
-                    // Doesn't matter if it's optional here, we just need the type to implement the Binder
-                    let ty = f.ty(false);
-                    quote!(
-                        figen::impl_config_binder!(#ty);
-                    )
-                });
-
             let ty = &s.ty;
             let fields = s.fields.iter().map(|field| {
                 let ident = field.ident();
@@ -202,8 +181,6 @@ fn expand_property(prop: &PropertyDefinition, parent_is_optional: bool) -> Token
                 }
 
                 #(#structs)*
-
-                #(#custom_binders)*
             )
         }
         PropertyDefinition::Array(a) => {
@@ -348,14 +325,12 @@ impl ScalarProperty {
         ty: Type,
         default_value: Option<Expr>,
         optional: bool,
-        custom_ty: bool,
     ) -> Self {
         ScalarProperty {
             ident,
             ty,
             default_value,
             optional,
-            custom_ty,
         }
     }
 }

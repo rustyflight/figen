@@ -43,7 +43,7 @@
 //! You can also define custom types for your configuration properties. The `config_registry` macro allows
 //! you to specify a custom type for a property, and it will generate the necessary bindings for
 //! that type. The custom type must implement the `TryFrom<&str>` trait to convert the string value
-//! into the custom type.
+//! into the custom type. Once the type implements TryFrom a helper macro can be used to implement the `ConfigBinder` trait for it.
 //!
 //! ## Example
 //! ```ignore
@@ -64,6 +64,7 @@
 //!    version = 1
 //!    custom_property("my_custom", MyGroup, default = "1,true", ty = CustomType)
 //! )
+//! config_binder!(CustomType);
 //! ```
 //!
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -214,7 +215,7 @@ macro_rules! str_ty {
 }
 
 #[macro_export]
-macro_rules! impl_config_binder {
+macro_rules! config_binder {
     ($ty:ty) => {
         impl<T, U> figen::binder::ConfigBinder<T, U> for $ty
             where

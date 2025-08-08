@@ -1,4 +1,4 @@
-use figen::config_registry;
+use figen::{config_registry, config_binder};
 
 mod utils;
 
@@ -20,6 +20,8 @@ config_registry!(
     str_property("deeply.nested.prop2", Group1, default = "def", max_len = 3)
     custom_property("custom_prop", Group1, default = "12", ty = CustomType)
 );
+
+config_binder!(CustomType);
 
 impl TryFrom<&str> for CustomType {
     type Error = &'static str;

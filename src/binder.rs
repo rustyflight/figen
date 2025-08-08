@@ -166,12 +166,7 @@ where
     U: PropertyLoader,
 {
     fn bind(&mut self, path: &mut T, loader: &U) -> crate::error::Result<()> {
-        #[cfg(not(feature = "std"))]
-        type KeyType = heapless::String<11>;
-        #[cfg(feature = "std")]
-        type KeyType = std::string::String;
-
-        let index: KeyType = loader.load_str_value(path.current_path())?;
+        let index: crate::str_ty!() = loader.load_str_value(path.current_path())?;
         let key = if let Some(prefix) = self.prefix {
             index.strip_prefix(prefix)
         } else {
