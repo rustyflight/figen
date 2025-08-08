@@ -1,0 +1,37 @@
+variables:
+  BUILD_AGENT: $CI_REGISTRY/bkappz/build-agents
+
+default:
+  tags:
+    - linux
+
+stages:
+  - build
+
+rust::latest:
+  stage: build
+  image: $BUILD_AGENT/rust:latest
+  parallel:
+    matrix:
+      - FEATURES: ["", "--features std"]
+  coverage: '/TOTAL\s+(\d+\s+)+(\d+\.\d+\%)/'
+  script:
+    - cargo llvm-cov nextest --color=always $FEATURES
+    - cargo llvm-cov report --cobertura --output-path target/llvm-cov-target/cobertura.xml
+  artifacts:
+    reports:
+      junit: target/nextest/default/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: target/llvm-cov-target/cobertura.xml
+
+rust::nightly:
+  stage: build
+  image: rustlang/rust:nightly
+  parallel:
+    matrix:
+      - FEATURES: [ "", "--features std" ]
+  script:
+    - cargo build $FEATURES --verbose
+    - cargo test $FEATURES --verbose
+  allow_failure: true

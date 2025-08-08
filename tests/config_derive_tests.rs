@@ -2,20 +2,18 @@ use figen::Configuration;
 
 mod utils;
 
-#[derive(Configuration, Debug)]
+#[derive(Configuration, Debug, Default)]
 struct MyConfig {
-    #[property(default = 4)]
+    #[property(optional)]
     i32_field: i32,
-    #[property(default = true)]
+    #[property(optional)]
     bool_field: bool,
-    #[property(default = "default_string")]
+    #[property(optional)]
     string_field: utils::StringType,
-    #[property(default = 42)]
+    #[property(optional)]
     optional_field: Option<i32>,
     #[property]
     nested_array: [i32; 2],
-    #[property(zero_indexed)]
-    zero_indexed: [i32; 2],
     #[property(indices = ["i1", "i2"])]
     custom_indexed: [i32; 2],
 }
@@ -32,12 +30,10 @@ fn should_attempt_to_load_keys() {
         "bool_field".to_string(),
         "string_field".to_string(),
         "optional_field".to_string(),
-        "nested_array.1".to_string(),
-        "nested_array.2".to_string(),
-        "zero_indexed.0".to_string(),
-        "zero_indexed.1".to_string(),
-        "custom_indexed.i1".to_string(),
-        "custom_indexed.i2".to_string(),
+        "nested_array[0]".to_string(),
+        "nested_array[1]".to_string(),
+        "custom_indexed[i1]".to_string(),
+        "custom_indexed[i2]".to_string(),
     ];
     assert_eq!(attempted_keys, expected_keys, "The keys attempted to load do not match the expected keys.");
 }
@@ -49,12 +45,10 @@ fn should_load_config_values() {
         .with_data("bool_field", "false") // Different from default
         .with_data("string_field", "test_string")
         .with_data("optional_field", "12") // Different from default
-        .with_data("nested_array.1", "1")
-        .with_data("nested_array.2", "2")
-        .with_data("zero_indexed.0", "10")
-        .with_data("zero_indexed.1", "20")
-        .with_data("custom_indexed.i1", "30")
-        .with_data("custom_indexed.i2", "40");
+        .with_data("nested_array[0]", "1")
+        .with_data("nested_array[1]", "2")
+        .with_data("custom_indexed[i1]", "30")
+        .with_data("custom_indexed[i2]", "40");
 
     let config: MyConfig = figen::load_config::<MyConfig, utils::MockLoader, utils::BindPathImpl>(&loader).expect("Failed to load configuration");
 
@@ -64,18 +58,16 @@ fn should_load_config_values() {
     assert_eq!(config.optional_field, Some(12));
     assert_eq!(config.nested_array[0], 1);
     assert_eq!(config.nested_array[1], 2);
-    assert_eq!(config.zero_indexed[0], 10);
-    assert_eq!(config.zero_indexed[1], 20);
     assert_eq!(config.custom_indexed[0], 30);
     assert_eq!(config.custom_indexed[1], 40);
 }
 
 
-#[derive(Configuration, Debug)]
+#[derive(Configuration, Debug, Default)]
 struct TestConfig {
     #[property] // no default value
     required_field: i32,
-    #[property(default = 100)]
+    #[property()]
     optional_field: i32,
     #[property] // Option<> types are fine with no default
     optional_field2: Option<i32>,

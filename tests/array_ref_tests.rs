@@ -3,7 +3,7 @@ use figen::error::Error;
 
 mod utils;
 
-#[derive(Configuration, Debug)]
+#[derive(Configuration, Debug, Default)]
 struct ArrayRefConfig {
     #[property(array_ref(key = "my_array", prefix = "NESTED_"))]
     array_ref: Nested,
@@ -11,11 +11,11 @@ struct ArrayRefConfig {
     optional_array_ref: Option<Nested>
 }
 
-#[derive(Configuration, Debug)]
+#[derive(Configuration, Debug, Default)]
 struct Nested {
-    #[property(default = 20)]
+    #[property]
     field1: i32,
-    #[property(default = 30)]
+    #[property]
     field2: i32
 }
 
