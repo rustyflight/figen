@@ -1,4 +1,6 @@
-use figen::{config_registry, config_binder};
+use log::log;
+use figen::binder::ConfigBinder;
+use figen::{config_binder, config_registry, BindPath};
 
 mod utils;
 
@@ -68,4 +70,32 @@ pub fn test_config_binding() {
     assert_eq!(config.optional_str_prop, None); // Optional property not set
     assert_eq!(config.deeply.nested.prop, 200);
     assert_eq!(config.deeply.nested.prop2, "ghi");
+}
+
+config_registry!(
+    version = 1
+
+    num_property("field1", TestPath, default = 0)
+    bool_property("field2.field.enabled", TestPath, optional)
+    str_property("field2.field.aux", TestPath, optional, max_len = 8)
+    num_property("field2.field.threshold", TestPath, optional, ty = u8)
+    num_property("field3", TestPath, default = 30, ty = u16)
+);
+
+#[test]
+pub fn path_should_be_empty_on_ok() {
+    let mut path = figen::BindPathImpl::new();
+    let loader = utils::MockLoader::new();
+
+    let mut config = TestPathConfig::default();
+
+    let result = config.bind(&mut path, &loader);
+    match result {
+        Ok(_) => {
+            assert!(path.current_path().is_empty(), "Path should be empty after successful binding, but got: {}", path.current_path());
+        }
+        Err(e) => {
+            panic!("Binding should have succeeded, but failed unexpectedly with error: {:?} at {}", e, path.current_path());
+        }
+    }
 }

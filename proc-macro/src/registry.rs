@@ -146,7 +146,7 @@ fn expand_property(prop: &PropertyDefinition, parent_is_optional: bool) -> Token
                 let ty = field.ty(is_optional);
 
                 let mut property_attrs = vec![];
-                if is_optional || field.has_default_value() {
+                if field.is_optional() || field.has_default_value() || parent_is_optional {
                     property_attrs.push(quote!(optional))
                 };
 

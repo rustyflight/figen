@@ -237,9 +237,9 @@ macro_rules! config_binder {
 
 
 #[cfg(not(feature = "std"))]
-type BindPathImpl = NoStdBindPath<64>;
+pub type BindPathImpl = NoStdBindPath<64>;
 #[cfg(feature = "std")]
-type BindPathImpl = StdBindPath;
+pub type BindPathImpl = StdBindPath;
 
 #[inline(always)]
 pub fn load_config<T, U>(property_loader: &U) -> error::Result<T>
