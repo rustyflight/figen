@@ -188,13 +188,18 @@ pub fn derive_configuration(input: TokenStream) -> TokenStream {
         }
     });
 
+    let result_expand = if field_defs.iter().all(|f| f.attrs.optional) {
+        quote!(let mut result = Err(figen::error::Error::NotFound);)
+    } else {
+        quote!(let mut result = Err(figen::error::Error::Required);)
+    };
     quote!(
         impl<T, U> figen::binder::ConfigBinder<T, U> for #ident where
             T: figen::BindPath,
             U: figen::loader::PropertyLoader,
         {
             fn bind(&mut self, path: &mut T, loader: &U) -> figen::error::Result<()> {
-                let mut result = Err(figen::error::Error::Required);
+                #result_expand
                 #(#bindings);*
                 result
             }
