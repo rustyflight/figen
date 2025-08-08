@@ -86,6 +86,7 @@ impl Parse for ParsedPropertyDefinition {
             ty,
             raw_definition.get_attr("default"),
             raw_definition.get_attr("optional").is_some(),
+            raw_definition.is_custom_property(),
         );
         let mut prop_def = PropertyDefinition::Scalar(scalar);
 
@@ -217,6 +218,10 @@ impl PropertyDefinitionRaw {
                 format!("Unknown property definition: {}", self.ident),
             )),
         }
+    }
+
+    fn is_custom_property(&self) -> bool {
+        self.ident.to_string().as_str() == "custom_property"
     }
 
     fn add_attr(&mut self, attr: Attr) {

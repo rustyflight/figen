@@ -2,6 +2,11 @@ use figen::config_registry;
 
 mod utils;
 
+#[derive(Default, Debug)]
+struct CustomType {
+    value: i32,
+}
+
 config_registry!(
     version = 1
 
@@ -13,7 +18,16 @@ config_registry!(
     str_property("optional_str_prop", Group1, max_len = 4, optional)
     num_property("deeply.nested.prop", Group1, default = 100)
     str_property("deeply.nested.prop2", Group1, default = "def", max_len = 3)
+    custom_property("custom_prop", Group1, default = "12", ty = CustomType)
 );
+
+impl From<&str> for CustomType {
+    fn from(value: &str) -> Self {
+        CustomType {
+            value: value.parse().unwrap(),
+        }
+    }
+}
 
 #[test]
 pub fn test_generated_fields() {
@@ -26,6 +40,7 @@ pub fn test_generated_fields() {
     assert_eq!(group1_config.optional_str_prop, None);
     assert_eq!(group1_config.deeply.nested.prop, 100);
     assert_eq!(group1_config.deeply.nested.prop2, "def");
+    assert_eq!(group1_config.custom_prop.value, 12);
 }
 
 #[test]
@@ -39,8 +54,7 @@ pub fn test_config_binding() {
         .with_data("deeply.nested.prop", "200")
         .with_data("deeply.nested.prop2", "ghi");
 
-    let config: Group1Config = figen::load_config(&loader)
-        .expect("Failed to load configuration");
+    let config: Group1Config = figen::load_config(&loader).expect("Failed to load configuration");
 
     assert_eq!(config.str_prop, "xyz");
     assert_eq!(config.num_prop, 99);

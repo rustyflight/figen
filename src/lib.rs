@@ -38,6 +38,34 @@
 //!     println!("{:?}", config);
 //! }
 //! ```
+//!
+//! # Using Custom Types
+//! You can also define custom types for your configuration properties. The `config_registry` macro allows
+//! you to specify a custom type for a property, and it will generate the necessary bindings for
+//! that type. The custom type must implement the `From<&str>` trait to convert the string value
+//! into the custom type.
+//!
+//! ## Example
+//! ```rust
+//! use figen::config_registry;
+//!
+//! struct CustomType {
+//!    field1: i32,
+//!    field2: bool,
+//! }
+//!
+//! impl From<&str> for CustomType {
+//!    fn from(value: &str) -> Self {
+//!      // Custom conversion logic from &str
+//!    }
+//! }
+//!
+//! config_registry!(
+//!    version = 1
+//!    custom_property("my_custom", MyGroup, default = "1,true", ty = CustomType)
+//! )
+//! ```
+//!
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "std")]
@@ -172,6 +200,38 @@ impl BindPath for StdBindPath {
         self.path.as_str()
     }
 }
+
+#[cfg(feature = "std")]
+#[macro_export]
+macro_rules! str_ty {
+    () => { std::string::String };
+}
+
+#[cfg(not(feature = "std"))]
+#[macro_export]
+macro_rules! str_ty {
+    () => { heapless::String<32> };
+}
+
+#[macro_export]
+macro_rules! impl_config_binder {
+    ($ty:ty) => {
+        impl<T, U> figen::binder::ConfigBinder<T, U> for $ty
+            where
+            T: figen::BindPath,
+            U: figen::loader::PropertyLoader
+        {
+            fn bind(&mut self, path: &mut T, loader: &U) -> figen::Result<()> {
+                let key = path.current_path();
+                let value: figen::str_ty!() = loader.load_str_value(key)?;
+                *self = value.as_str().into();
+                Ok(())
+            }
+        }
+    }
+}
+
+
 
 #[cfg(not(feature = "std"))]
 type BindPathImpl = NoStdBindPath<64>;
