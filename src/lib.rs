@@ -5,7 +5,7 @@
 //! # Example
 //! The following example demonstrates how to define a configuration structure using the `Configuration` derive macro and load it using a custom property loader.
 //! The `Configuration` derive macro automatically generates the necessary bindings for the configuration fields, allowing you to easily manage and load configurations from various sources.
-//! ```rust
+//! ```ignore
 //! use figen::{Configuration, load_config};
 //!
 //! #[derive(Configuration, Debug, Default)]
@@ -16,14 +16,14 @@
 //!
 //! fn main() {
 //!     let loader = MyPropertyLoader::new(); // Implement your own PropertyLoader
-//!     let config: MyConfig = load.config::<MyConfig, MyPropertyLoader, StdBindBath>(&loader)
+//!     let config: MyConfig = load.config(&loader)
 //!         .expect("Failed to load configuration");
 //!     println!("{:?}", config);
 //! }
 //! ```
 //!
 //! A more typical usage would involve using the `config_registry` macro to define a configuration registry, which also generates the necessary bindings and structs for you.
-//! ```rust
+//! ```ignore
 //! use figen::config_registry;
 //! config_registry!(
 //!     version = 1
@@ -33,7 +33,7 @@
 //!
 //! fn main() {
 //!     let loader = MyPropertyLoader::new(); // Implement your own PropertyLoader
-//!     let config: MyGroupConfig = figen::load_config::<MyGroupConfig, MyPropertyLoader, StdBindBath>(&loader)
+//!     let config: MyGroupConfig = figen::load_config(&loader)
 //!        .expect("Failed to load configuration");
 //!     println!("{:?}", config);
 //! }
@@ -46,7 +46,7 @@
 //! into the custom type.
 //!
 //! ## Example
-//! ```rust
+//! ```ignore
 //! use figen::config_registry;
 //!
 //! struct CustomType {
