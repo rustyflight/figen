@@ -21,11 +21,13 @@ config_registry!(
     custom_property("custom_prop", Group1, default = "12", ty = CustomType)
 );
 
-impl From<&str> for CustomType {
-    fn from(value: &str) -> Self {
-        CustomType {
-            value: value.parse().unwrap(),
-        }
+impl TryFrom<&str> for CustomType {
+    type Error = &'static str;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(CustomType {
+            value: value.parse().map_err(|_| "Failed to parse CustomType")?,
+        })
     }
 }
 
