@@ -83,7 +83,6 @@ fn expand_field(prop: &PropertyDefinition, as_array_element: bool) -> TokenStrea
             let ty = &s.ty;
             let fields = s.fields.iter().map(|field| expand_field(field, false));
 
-
             let initializer = if prop.is_optional() && !prop.has_default_value() {
                 quote!(None)
             } else {
@@ -96,7 +95,7 @@ fn expand_field(prop: &PropertyDefinition, as_array_element: bool) -> TokenStrea
             };
 
             if as_array_element {
-               initializer
+                initializer
             } else {
                 quote!(
                     #ident: #initializer
@@ -123,7 +122,7 @@ fn expand_field(prop: &PropertyDefinition, as_array_element: bool) -> TokenStrea
                     }
                 } else {
                     quote!(#default_value)
-                }
+                };
             }
 
             let default_value = if let Some(value) = default_value {
@@ -146,7 +145,18 @@ fn expand_property(prop: &PropertyDefinition, parent_is_optional: bool) -> Token
                 let is_optional = field.is_optional() && !parent_is_optional;
                 let ty = field.ty(is_optional);
 
+                let mut property_attrs = vec![];
+                if is_optional || field.has_default_value() {
+                    property_attrs.push(quote!(optional))
+                };
+
+                if let PropertyDefinition::Array(array) = field {
+                    let indices: Vec<&Lit> = array.indices.iter().map(|(index, _)| index).collect();
+                    property_attrs.push(quote!(indices = [#(#indices),*]));
+                }
+
                 quote!(
+                    #[property(#(#property_attrs),*)]
                     pub #ident: #ty
                 )
             });
@@ -164,6 +174,7 @@ fn expand_property(prop: &PropertyDefinition, parent_is_optional: bool) -> Token
                 .map(|field| expand_property(field, parent_is_optional || field.is_optional()));
 
             quote!(
+                #[derive(figen::Configuration)]
                 pub struct #ty {
                     #(#fields),*
                 }
@@ -268,20 +279,20 @@ impl PropertyDefinition {
         match self {
             PropertyDefinition::Scalar(s) => {
                 let ty = s.ty.clone();
-                if optional{
+                if optional {
                     syn::parse2(quote!(Option<#ty>)).expect("Failed to parse optional type")
                 } else {
                     ty
                 }
-            },
+            }
             PropertyDefinition::Struct(s) => {
                 let ty = s.ty.clone();
-                if optional{
+                if optional {
                     syn::parse2(quote!(Option<#ty>)).expect("Failed to parse optional type")
                 } else {
                     ty
                 }
-            },
+            }
             PropertyDefinition::Array(a) => {
                 let ty = a.elem.ty(optional);
                 let size = a.indices.len();
@@ -301,7 +312,7 @@ impl PropertyDefinition {
     fn has_default_value(&self) -> bool {
         match self {
             PropertyDefinition::Scalar(s) => s.default_value.is_some(),
-            PropertyDefinition::Struct(s) => s.fields.iter().any(|f| f.has_default_value()),
+            PropertyDefinition::Struct(s) => s.fields.iter().all(|f| f.has_default_value()),
             PropertyDefinition::Array(a) => a.indices.iter().all(|(_, f)| f.has_default_value()),
         }
     }

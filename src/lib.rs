@@ -1,20 +1,19 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 extern crate alloc;
 
-pub mod loader;
 pub mod binder;
 pub mod error;
+pub mod loader;
 pub mod registry;
 
 use binder::ConfigBinder;
 use loader::PropertyLoader;
 
 // Re-export
-pub use figen_proc_macros::Configuration;
 pub use figen_proc_macros::expand_config_registry;
+pub use figen_proc_macros::Configuration;
 
 pub trait BindPath {
-
     fn new() -> Self;
     fn push(&mut self, key: &str);
     fn pop(&mut self);
@@ -33,14 +32,17 @@ impl<const N: usize> BindPath for NoStdBindPath<N> {
         use core::str::FromStr;
 
         NoStdBindPath {
-            path_separator: heapless::String::from_str(".").expect("Failed to create path separator"),
+            path_separator: heapless::String::from_str(".")
+                .expect("Failed to create path separator"),
             path: heapless::String::new(),
         }
     }
 
     fn push(&mut self, key: &str) {
         if !self.path.is_empty() {
-            self.path.push_str(self.path_separator.as_str()).expect("Failed to push path separator");
+            self.path
+                .push_str(self.path_separator.as_str())
+                .expect("Failed to push path separator");
         }
         self.path.push_str(key).expect("Failed to push key to path");
     }
@@ -54,9 +56,15 @@ impl<const N: usize> BindPath for NoStdBindPath<N> {
     }
 
     fn push_array_index(&mut self, key: &str) {
-        self.path.push('[').expect("Failed to push array index opening bracket");
-        self.path.push_str(key).expect("Failed to push array index key");
-        self.path.push(']').expect("Failed to push array index closing bracket");
+        self.path
+            .push('[')
+            .expect("Failed to push array index opening bracket");
+        self.path
+            .push_str(key)
+            .expect("Failed to push array index key");
+        self.path
+            .push(']')
+            .expect("Failed to push array index closing bracket");
     }
 
     fn pop_array_index(&mut self) {
@@ -66,7 +74,6 @@ impl<const N: usize> BindPath for NoStdBindPath<N> {
             self.path.clear();
         }
     }
-
 
     fn current_path(&self) -> &str {
         self.path.as_str()
@@ -79,10 +86,8 @@ pub struct StdBindPath {
     path: String,
 }
 
-
 #[cfg(feature = "std")]
 impl BindPath for StdBindPath {
-
     fn new() -> Self {
         Self {
             path_separator: String::from("."),
@@ -119,7 +124,6 @@ impl BindPath for StdBindPath {
             self.path.clear();
         }
     }
-
 
     fn current_path(&self) -> &str {
         self.path.as_str()

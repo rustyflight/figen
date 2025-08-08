@@ -4,18 +4,17 @@ use darling::{FromAttributes, FromMeta};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, Data, Ident, Lit, LitStr, Type};
+use syn::{parse_macro_input, Data, Ident, LitStr, Type};
 
 #[derive(Debug, FromAttributes)]
 #[darling(attributes(property))]
 struct PropertyArgs {
     key: Option<LitStr>,
-    default: Option<Lit>,
+    #[darling(default)]
+    optional: bool,
     #[darling(default)]
     flatten: bool,
     indices: Option<Vec<LitStr>>,
-    #[darling(default)]
-    zero_indexed: bool,
     array_ref: Option<ArrayRefArgs>,
 }
 
@@ -73,7 +72,7 @@ pub fn derive_configuration(input: TokenStream) -> TokenStream {
         let field = field_def.ident.clone();
         let key = field_def.attrs.key.clone().unwrap_or_else(|| LitStr::new(&field.to_string().as_str(), field.span()));
 
-        let handle_err = if field_def.attrs.default.is_some() {
+        let handle_err = if field_def.attrs.optional {
             quote!(
                 Ok(r) => {
                     result = result.or(Ok(r));
@@ -111,11 +110,7 @@ pub fn derive_configuration(input: TokenStream) -> TokenStream {
                     }
                 )
             }).or_else(|| {
-                if field_def.attrs.zero_indexed {
-                    Some(quote!(figen::binder::ArrayConfigIndicesMode::ZeroIndexed))
-                } else {
-                    Some(quote!(figen::binder::ArrayConfigIndicesMode::OneIndexed))
-                }
+                Some(quote!(figen::binder::ArrayConfigIndicesMode::ZeroIndexed))
             });
 
             quote!(
@@ -181,7 +176,6 @@ pub fn derive_configuration(input: TokenStream) -> TokenStream {
             }
         };
 
-
         // If the field is flattened, we bind it directly, otherwise we push the key to the path
         if field_def.attrs.flatten {
             bind_call
@@ -194,30 +188,6 @@ pub fn derive_configuration(input: TokenStream) -> TokenStream {
         }
     });
 
-    let defaults = field_defs.iter().map(|field_def| {
-        let field = &field_def.ident;
-        let ty = &field_def.ty;
-
-        assert!(!(field_def.attrs.array_ref.is_some() && field_def.attrs.default.is_some()), "Field [{}] can not have both array_ref and default attributes defined", field);
-        let default_value = &field_def.attrs.default.as_ref()
-            .map(|lit| quote!(#lit.try_into().expect("Failed to convert default value to type")))
-            .unwrap_or_else(|| {
-                match ty {
-                    Type::Array(arr) => {
-                        let elem_type = &arr.elem;
-                        quote!(core::array::from_fn(|_| #elem_type::default()))
-                    }
-                    _ => quote!(Default::default())
-                }
-            });
-
-
-        quote!(
-            #field: #default_value
-        )
-    });
-
-
     quote!(
         impl<T, U> figen::binder::ConfigBinder<T, U> for #ident where
             T: figen::BindPath,
@@ -227,14 +197,6 @@ pub fn derive_configuration(input: TokenStream) -> TokenStream {
                 let mut result = Err(figen::error::Error::Required);
                 #(#bindings);*
                 result
-            }
-        }
-
-        impl Default for #ident {
-            fn default() -> Self {
-                Self {
-                    #(#defaults),*
-                }
             }
         }
     ).into()

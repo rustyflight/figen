@@ -1,6 +1,7 @@
 use crate::error::Error::NotFound;
 use crate::loader::PropertyLoader;
 use crate::BindPath;
+use core::mem::MaybeUninit;
 
 pub const MAX_ARRAY_SIZE: usize = 1024;
 const MAX_ARRAY_KEY_SIZE_STR: usize = 4;
@@ -42,16 +43,13 @@ where
 
 pub enum ArrayConfigIndicesMode<'a> {
     ZeroIndexed,
-    OneIndexed,
     Custom(&'a [&'a str]),
 }
-
 
 pub struct ArrayConfigBinder<'a, T> {
     mode: ArrayConfigIndicesMode<'a>,
     items: &'a mut [T],
 }
-
 
 impl<'a, T> ArrayConfigBinder<'a, T> {
     pub fn new(mode: ArrayConfigIndicesMode<'a>, items: &'a mut [T]) -> Self {
@@ -67,53 +65,47 @@ where
 {
     fn bind(&mut self, path: &mut T, loader: &U) -> crate::error::Result<()> {
         use ArrayConfigIndicesMode::*;
-        assert!(self.items.len() <= MAX_ARRAY_SIZE, "Array size exceeds maximum allowed size of {}", MAX_ARRAY_SIZE);
+        assert!(
+            self.items.len() <= MAX_ARRAY_SIZE,
+            "Array size exceeds maximum allowed size of {}",
+            MAX_ARRAY_SIZE
+        );
 
         let mut result = Err(NotFound);
         match self.mode {
             ZeroIndexed => {
                 for (i, item) in self.items.iter_mut().enumerate() {
-                    let key: heapless::String<{ MAX_ARRAY_KEY_SIZE_STR }> = heapless::String::try_from(i as u32).expect("Index too large for heapless::String<4>");
-                    path.push(key.as_str());
+                    let key: heapless::String<{ MAX_ARRAY_KEY_SIZE_STR }> =
+                        heapless::String::try_from(i as u32)
+                            .expect("Index too large for heapless::String<4>");
+                    path.push_array_index(key.as_str());
                     match item.bind(path, loader) {
-                        Ok(_) => { result = result.or(Ok(())); }
+                        Ok(_) => {
+                            result = result.or(Ok(()));
+                        }
                         Err(e) => {
                             if e != NotFound {
                                 return Err(e);
                             }
                         }
                     }
-
-                    path.pop();
-                }
-            }
-            OneIndexed => {
-                for (i, item) in self.items.iter_mut().enumerate() {
-                    let key: heapless::String<{ MAX_ARRAY_KEY_SIZE_STR }> = heapless::String::try_from((i + 1) as u32).expect("Index too large for heapless::String<4>");
-                    path.push(key.as_str());
-                    match item.bind(path, loader) {
-                        Ok(_) => { result = result.or(Ok(())); }
-                        Err(e) => {
-                            if e != NotFound {
-                                return Err(e);
-                            }
-                        }
-                    }
-                    path.pop();
+                    path.pop_array_index();
                 }
             }
             Custom(indices) => {
                 for (i, index) in indices.iter().enumerate() {
-                    path.push(index);
+                    path.push_array_index(index);
                     match self.items[i].bind(path, loader) {
-                        Ok(_) => { result = result.or(Ok(())); }
+                        Ok(_) => {
+                            result = result.or(Ok(()));
+                        }
                         Err(e) => {
                             if e != NotFound {
                                 return Err(e);
                             }
                         }
                     }
-                    path.pop();
+                    path.pop_array_index();
                 }
             }
         }
@@ -123,8 +115,11 @@ where
 }
 
 pub struct ArrayRefBinder<'a, T> {
+    /// The reference key for the array.
     array_ref: &'static str,
+    /// Optional prefix to strip from the array index.
     prefix: Option<&'static str>,
+    /// The value to bind to the array reference.
     value: &'a mut T,
 }
 
@@ -145,10 +140,12 @@ where
     U: PropertyLoader,
 {
     fn bind(&mut self, path: &mut T, loader: &U) -> crate::error::Result<()> {
-        #[cfg(feature = "std")]
-        let index = loader.load_str_value(path.current_path())?;
         #[cfg(not(feature = "std"))]
-        let index = loader.load_str_value::<11>(path.current_path())?; // TODO: Hardcoded 11 char long string as key! Not ideal
+        type KeyType = heapless::String<11>;
+        #[cfg(feature = "std")]
+        type KeyType = std::string::String;
+
+        let index: KeyType = loader.load_str_value(path.current_path())?;
         let key = if let Some(prefix) = self.prefix {
             index.strip_prefix(prefix)
         } else {
@@ -161,7 +158,6 @@ where
             ref_path.push_array_index(key);
             self.value.bind(&mut ref_path, loader)?;
         }
-
 
         Ok(())
     }
@@ -180,21 +176,6 @@ where
     }
 }
 
-impl<T, U> ConfigBinder<T, U> for f32
-where
-    T: BindPath,
-    U: PropertyLoader,
-{
-    fn bind(&mut self, path: &mut T, loader: &U) -> crate::error::Result<()> {
-        let key = path.current_path();
-        let num = loader.load_number_value(key)?;
-        *self = num as f32;
-
-        Ok(())
-    }
-}
-
-
 trait Numeric {}
 impl Numeric for i32 {}
 impl Numeric for u32 {}
@@ -202,7 +183,6 @@ impl Numeric for u16 {}
 impl Numeric for i16 {}
 impl Numeric for i8 {}
 impl Numeric for u8 {}
-
 
 impl<N, T, U> ConfigBinder<T, U> for N
 where
@@ -213,7 +193,9 @@ where
     fn bind(&mut self, path: &mut T, loader: &U) -> crate::error::Result<()> {
         let key = path.current_path();
         let value = loader.load_number_value(key)?;
-        *self = value.try_into().map_err(|_| crate::error::Error::Overflow)?;
+        *self = value
+            .try_into()
+            .map_err(|_| crate::error::Error::Overflow)?;
 
         Ok(())
     }
@@ -223,14 +205,17 @@ impl<T, U, V> ConfigBinder<T, U> for Option<V>
 where
     T: BindPath,
     U: PropertyLoader,
-    V: ConfigBinder<T, U> + Default,
+    V: ConfigBinder<T, U>,
 {
     fn bind(&mut self, path: &mut T, loader: &U) -> crate::error::Result<()> {
-        let mut value = V::default();
+        let mut maybe_value: MaybeUninit<V> = MaybeUninit::zeroed();
 
+        // SAFETY: If binding fails we return Err()
+        let value = unsafe { maybe_value.assume_init_mut() };
         match value.bind(path, loader) {
             Ok(()) => {
-                *self = Some(value);
+                // SAFETY: We have successfully bound `maybe_value` and it is safe to assume it is initialized now.
+                *self = Some(unsafe { maybe_value.assume_init() });
                 Ok(())
             }
             Err(crate::error::Error::NotFound) => {

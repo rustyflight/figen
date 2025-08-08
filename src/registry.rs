@@ -8,9 +8,3 @@ pub struct RegistryEntry<E> {
     pub default_value: Option<&'static str>,
     pub entry_type: E,
 }
-
-pub enum RegistryType {
-    System,
-    Board,
-    App,
-}
