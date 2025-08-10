@@ -1,28 +1,63 @@
 use serde::{Serialize, Serializer};
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct ConfigRegistry<E: 'static> {
-    version: u32,
-    entries: &'static [RegistryEntry<E>],
+#[cfg(feature = "std")]
+mod std {
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    pub struct ConfigRegistry<E> {
+        pub version: u32,
+        pub entries: Vec<RegistryEntry<E>>,
+    }
+
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    pub struct RegistryEntry<E> {
+        pub key: String,
+        pub default_value: Option<Value>,
+        pub entry_type: E,
+    }
+
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Eq, PartialEq, Debug)]
+    pub enum Value {
+        String(String),
+        Number(i32),
+        Boolean(bool),
+    }
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct RegistryEntry<E> {
-    pub key: &'static str,
-    pub default_value: Option<Value>,
-    pub entry_type: E,
+#[cfg(not(feature = "std"))]
+mod nostd {
+    #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+    pub struct ConfigRegistry<E: 'static> {
+        pub version: u32,
+        pub entries: &'static [RegistryEntry<E>],
+    }
+
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    pub struct RegistryEntry<E> {
+        pub key: &'static str,
+        pub default_value: Option<Value>,
+        pub entry_type: E,
+    }
+
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Eq, PartialEq, Debug)]
+    pub enum Value {
+        String(&'static str),
+        Number(i32),
+        Boolean(bool),
+    }
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Eq, PartialEq, Debug)]
-pub enum Value {
-    String(&'static str),
-    Number(i32),
-    Boolean(bool),
-}
+#[cfg(not(feature = "std"))]
+pub use nostd::*;
+
+#[cfg(feature = "std")]
+pub use std::*;
+
 
 
 impl<E: Serialize> ConfigRegistry<E> {
+    #[cfg(not(feature = "std"))]
     pub const fn new(version: u32, entries: &'static [RegistryEntry<E>]) -> Self {
         Self {
             version,
@@ -57,6 +92,7 @@ impl<E: Serialize> ConfigRegistry<E> {
 }
 
 impl<E> RegistryEntry<E> {
+    #[cfg(not(feature = "std"))]
     pub const fn new(key: &'static str, entry_type: E, default_value: Option<Value>) -> Self {
         Self {
             key,
