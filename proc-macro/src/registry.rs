@@ -1,15 +1,15 @@
 mod parser;
 
-use std::collections::HashSet;
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
+use std::collections::HashSet;
 use syn::{Error, Expr, Lit, LitInt, LitStr, Type};
 
 #[derive(Debug)]
 pub struct RegistryDefinition {
     version: LitInt,
     properties: Vec<PropertyDefinition>,
-    registry_entries: Vec<PropertyDefinitionRaw>
+    registry_entries: Vec<PropertyDefinitionRaw>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -77,10 +77,7 @@ impl PropertyDefinitionRaw {
             }
             "bool_property" => Ok(syn::parse_quote!(bool)),
             "num_property" => {
-                let ty = self
-                    .get_attr("ty")
-                    .map(|ty| ty.into_token_stream())
-                    .unwrap_or(quote!(i32));
+                let ty = self.get_attr("ty").map(|ty| ty.into_token_stream()).unwrap_or(quote!(i32));
                 Ok(syn::parse_quote!(#ty))
             }
             "custom_property" => {
@@ -106,10 +103,7 @@ impl PropertyDefinitionRaw {
     }
 
     fn get_attr(&self, attr: &str) -> Option<Expr> {
-        let result = self
-            .attributes
-            .iter()
-            .find(|a| a.ident.to_string().as_str() == attr);
+        let result = self.attributes.iter().find(|a| a.ident.to_string().as_str() == attr);
         result?.value.clone()
     }
 }
@@ -127,10 +121,7 @@ impl Attr {
 }
 
 pub fn expand(input: RegistryDefinition) -> TokenStream {
-    let expanded = input
-        .properties
-        .iter()
-        .map(|prop| expand_property(prop, false));
+    let expanded = input.properties.iter().map(|prop| expand_property(prop, false));
 
     let defaults = input.properties.iter().map(|prop| {
         if let PropertyDefinition::Struct(s) = prop {
@@ -148,38 +139,62 @@ pub fn expand(input: RegistryDefinition) -> TokenStream {
 
     let version = input.version;
     let mut groups = HashSet::new();
-    let registry_entries: Vec<TokenStream> = input
-        .registry_entries
-        .iter()
-        .map(|entry| {
-            let key = &entry.key;
-            let group = &entry.group;
-            groups.insert(group);
+    let registry_entries: Vec<TokenStream> = input.registry_entries.iter().map(|entry| {
+        let key = &entry.key;
+        let group = &entry.group;
+        groups.insert(group);
 
-            let default_value = entry.get_attr("default");
-            let default_value_expand = match (entry.ident.to_string().as_str(), default_value) {
-                ("str_property", Some(default_value)) => {
+        let default_value = entry.get_attr("default");
+        let default_value_expand = match (entry.ident.to_string().as_str(), default_value) {
+            ("str_property", Some(default_value)) => {
+                if cfg!(feature = "std") {
+                    quote!(Some(figen::registry::Value::String(#default_value.into())))
+                } else {
                     quote!(Some(figen::registry::Value::String(#default_value)))
                 }
-                ("bool_property", Some(default_value)) => {
-                    quote!(Some(figen::registry::Value::Boolean(#default_value)))
-                }
-                ("num_property", Some(default_value)) => {
-                    quote!(Some(figen::registry::Value::Number(#default_value)))
-                }
-                _ => quote!(None),
-            };
-            quote!(figen::registry::RegistryEntry::new(#key, EntryType::#group, #default_value_expand))
-        }).collect();
+            }
+            ("bool_property", Some(default_value)) => {
+                quote!(Some(figen::registry::Value::Boolean(#default_value)))
+            }
+            ("num_property", Some(default_value)) => {
+                quote!(Some(figen::registry::Value::Number(#default_value)))
+            }
+            _ => quote!(None),
+        };
+        quote!(figen::registry::RegistryEntry::new(#key, EntryType::#group, #default_value_expand))
+    }).collect();
     let groups: Vec<TokenStream> = groups.iter().map(|g| {
         quote!(#g)
     }).collect();
+
+    let registry_expand = if cfg!(feature = "std") {
+        // STD feature enabled, use Vec for registry entries which requires slightly different declaration
+        quote!(
+            lazy_static::lazy_static!{
+                pub static ref REGISTRY: figen::registry::ConfigRegistry<EntryType> = figen::registry::ConfigRegistry::new(
+                #version,
+                vec![
+                    #(#registry_entries),*
+                ]
+                );
+            }
+        )
+    } else {
+        quote!(
+            pub static REGISTRY: figen::registry::ConfigRegistry<EntryType> = figen::registry::ConfigRegistry::new(
+                #version,
+                &[
+                    #(#registry_entries),*
+                ]
+            );
+        )
+    };
 
     quote!(
         #(#expanded)*
 
         #(#defaults)*
-        
+
         #[derive(#derive_serde Debug)]
         pub enum EntryType {
             #(
@@ -187,12 +202,7 @@ pub fn expand(input: RegistryDefinition) -> TokenStream {
             )*
         }
 
-        pub static REGISTRY: figen::registry::ConfigRegistry<EntryType> = figen::registry::ConfigRegistry::new(
-            #version,
-            &[
-                #(#registry_entries),*
-            ]
-        );
+        #registry_expand
     )
 }
 
@@ -297,17 +307,13 @@ fn expand_property(prop: &PropertyDefinition, parent_is_optional: bool) -> Token
             });
 
             // Recursively expand nested structs and array element types
-            let structs = s
-                .fields
-                .iter()
-                .filter(|prop| {
-                    if let PropertyDefinition::Scalar(_) = prop {
-                        false
-                    } else {
-                        true
-                    }
-                })
-                .map(|field| expand_property(field, parent_is_optional || field.is_optional()));
+            let structs = s.fields.iter().filter(|prop| {
+                if let PropertyDefinition::Scalar(_) = prop {
+                    false
+                } else {
+                    true
+                }
+            }).map(|field| expand_property(field, parent_is_optional || field.is_optional()));
 
             quote!(
                 #[derive(figen::Configuration)]
@@ -512,11 +518,7 @@ impl RegistryDefinition {
         if !self.properties.contains(&property) {
             self.properties.push(property);
         } else {
-            let prop = self
-                .properties
-                .iter_mut()
-                .find(|p| *p == &property)
-                .unwrap();
+            let prop = self.properties.iter_mut().find(|p| *p == &property).unwrap();
             prop.merge(property)?;
         }
         Ok(())

@@ -32,14 +32,14 @@ mod nostd {
         pub entries: &'static [RegistryEntry<E>],
     }
 
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize))]
     pub struct RegistryEntry<E> {
         pub key: &'static str,
         pub default_value: Option<Value>,
         pub entry_type: E,
     }
 
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize))]
     #[derive(Eq, PartialEq, Debug)]
     pub enum Value {
         String(&'static str),
@@ -59,6 +59,13 @@ pub use std::*;
 impl<E: Serialize> ConfigRegistry<E> {
     #[cfg(not(feature = "std"))]
     pub const fn new(version: u32, entries: &'static [RegistryEntry<E>]) -> Self {
+        Self {
+            version,
+            entries
+        }
+    }
+    #[cfg(feature = "std")]
+    pub const fn new(version: u32, entries: Vec<RegistryEntry<E>>) -> Self {
         Self {
             version,
             entries
@@ -96,6 +103,14 @@ impl<E> RegistryEntry<E> {
     pub const fn new(key: &'static str, entry_type: E, default_value: Option<Value>) -> Self {
         Self {
             key,
+            default_value,
+            entry_type,
+        }
+    }
+    #[cfg(feature = "std")]
+    pub fn new(key: &'static str, entry_type: E, default_value: Option<Value>) -> Self {
+        Self {
+            key: key.into(),
             default_value,
             entry_type,
         }

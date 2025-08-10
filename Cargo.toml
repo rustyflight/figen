@@ -8,12 +8,13 @@ heapless = "0.8.0"
 figen-proc-macros = {  path = "./proc-macro" }
 log = "0.4.27"
 serde = { version = "1.0.219", default-features = false, features = ["derive"] }
+lazy_static = {  version = "1.5.0", optional = true }
 
 [dev-dependencies]
 serde_json = "1.0.142"
 
 [features]
-std = ["figen-proc-macros/std"]
+std = ["figen-proc-macros/std", "lazy_static"]
 serde = ["figen-proc-macros/serde"]
 
 [profile.test]

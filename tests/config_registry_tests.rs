@@ -1,3 +1,4 @@
+use crate::registry1::REGISTRY;
 use figen::binder::ConfigBinder;
 use figen::registry::Value::Number;
 use figen::registry::Value::String;
@@ -81,7 +82,7 @@ pub fn test_config_binding() {
 }
 
 mod registry2 {
-    use figen::{config_binder, config_registry};
+    use figen::config_registry;
 
     config_registry!(
         version = 1
@@ -156,7 +157,7 @@ pub fn should_generate_registry() {
     assert_eq!(reg.get_default_value("field1"), Some(Number(0)).as_ref());
     assert_eq!(
         reg.get_default_value("field2.field.aux"),
-        Some(String("aux")).as_ref()
+        Some(String("aux".into())).as_ref()
     );
     assert_eq!(reg.get_default_value("field2.field.threshold"), None);
     assert_eq!(reg.get_default_value("field3"), Some(Number(30)).as_ref());
@@ -165,7 +166,13 @@ pub fn should_generate_registry() {
 #[test]
 fn should_serialize_registry() {
     use registry2::*;
-    let serialized = serde_json::to_string(&REGISTRY).expect("Failed to serialize registry");
+    #[cfg(feature = "std")]
+    let config_registry = &*REGISTRY;
+    #[cfg(not(feature = "std"))]
+    let config_registry = &REGISTRY;
+
+
+    let serialized = serde_json::to_string(config_registry).expect("Failed to serialize registry");
 
     assert!(serialized.contains("\"version\":1"));
     assert!(serialized.contains("\"key\":\"field1\""));
