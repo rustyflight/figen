@@ -87,7 +87,7 @@ mod registry2 {
         version = 1
 
         num_property("field1", TestPath, default = 0)
-        bool_property("field2.field.enabled", TestPath, optional)
+        bool_property("field2.field.enabled", TestPath, optional, detaul = true)
         str_property("field2.field.aux", TestPath, optional, max_len = 8, default = "aux")
         num_property("field2.field.threshold", TestPath, optional, ty = u8)
         num_property("field3", TestPath, default = 30, ty = u16)

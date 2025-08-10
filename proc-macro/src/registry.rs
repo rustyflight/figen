@@ -156,7 +156,7 @@ pub fn expand(input: RegistryDefinition) -> TokenStream {
                     quote!(Some(figen::registry::Value::String(#default_value)))
                 }
                 ("bool_property", Some(default_value)) => {
-                    quote!(Some(figen::registry::Value::Bool(#default_value)))
+                    quote!(Some(figen::registry::Value::Boolean(#default_value)))
                 }
                 ("num_property", Some(default_value)) => {
                     quote!(Some(figen::registry::Value::Number(#default_value)))
