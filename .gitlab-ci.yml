@@ -13,7 +13,7 @@ rust::latest:
   image: $BUILD_AGENT/rust:latest
   parallel:
     matrix:
-      - FEATURES: ["", "--features std"]
+      - FEATURES: [ "--features serde", "--features std --features serde" ]
   coverage: '/TOTAL\s+(\d+\s+)+(\d+\.\d+\%)/'
   script:
     - cargo llvm-cov nextest --color=always $FEATURES
@@ -30,7 +30,7 @@ rust::nightly:
   image: rustlang/rust:nightly
   parallel:
     matrix:
-      - FEATURES: [ "", "--features std" ]
+      - FEATURES: [ "--features serde", "--features std --features serde" ]
   script:
     - cargo build $FEATURES --verbose
     - cargo test $FEATURES --verbose

@@ -1,5 +1,5 @@
-use crate::registry::RegistryDefinition;
 use crate::registry::{ArrayProperty, PropertyDefinition, ScalarProperty, StructProperty};
+use crate::registry::{Attr, PropertyDefinitionRaw, RegistryDefinition};
 use proc_macro2::{Ident, Span};
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseBuffer, ParseStream};
@@ -17,6 +17,7 @@ impl Parse for RegistryDefinition {
             let ParsedPropertyDefinition(prop_def, raw_def) = input.parse()?;
 
             registry_def.push(prop_def)?;
+            registry_def.registry_entries.push(raw_def);
         }
 
         Ok(registry_def)
@@ -163,86 +164,3 @@ fn sanitize_key(key: &str) -> String {
 }
 
 struct ParsedPropertyDefinition(PropertyDefinition, PropertyDefinitionRaw);
-
-struct PropertyDefinitionRaw {
-    ident: Ident,
-    key: LitStr,
-    group: Ident,
-    attributes: Vec<Attr>,
-}
-
-impl PropertyDefinitionRaw {
-    fn new(ident: Ident, key: LitStr, group: Ident) -> Self {
-        PropertyDefinitionRaw {
-            ident,
-            key,
-            group,
-            attributes: vec![],
-        }
-    }
-
-    fn get_final_type(&self) -> syn::Result<syn::Type> {
-        match self.ident.to_string().as_str() {
-            "str_property" => {
-                #[cfg(feature = "std")]
-                {
-                    Ok(syn::parse_quote!(String))
-                }
-                #[cfg(not(feature = "std"))]
-                {
-                    let max_len = self.get_attr("max_len").ok_or(Error::new(
-                        self.ident.span(),
-                        "Missing max_len attribute for nostd String property",
-                    ))?;
-                    Ok(syn::parse_quote!(heapless::String<#max_len>))
-                }
-            }
-            "bool_property" => Ok(syn::parse_quote!(bool)),
-            "num_property" => {
-                let ty = self
-                    .get_attr("ty")
-                    .map(|ty| ty.into_token_stream())
-                    .unwrap_or(quote!(i32));
-                Ok(syn::parse_quote!(#ty))
-            }
-            "custom_property" => {
-                let ty = self.get_attr("ty").ok_or(Error::new(
-                    self.ident.span(),
-                    "Missing type attribute for custom property",
-                ))?;
-                Ok(syn::parse_quote!(#ty))
-            }
-            &_ => Err(Error::new(
-                self.ident.span(),
-                format!("Unknown property definition: {}", self.ident),
-            )),
-        }
-    }
-
-    fn is_custom_property(&self) -> bool {
-        self.ident.to_string().as_str() == "custom_property"
-    }
-
-    fn add_attr(&mut self, attr: Attr) {
-        self.attributes.push(attr);
-    }
-
-    fn get_attr(&self, attr: &str) -> Option<Expr> {
-        let result = self
-            .attributes
-            .iter()
-            .find(|a| a.ident.to_string().as_str() == attr);
-        result?.value.clone()
-    }
-}
-
-struct Attr {
-    ident: Ident,
-    value: Option<Expr>,
-}
-
-impl Attr {
-    fn new(ident: Ident, value: Option<Expr>) -> Self {
-        Attr { ident, value }
-    }
-}

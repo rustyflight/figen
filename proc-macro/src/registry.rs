@@ -1,13 +1,15 @@
 mod parser;
 
+use std::collections::HashSet;
 use proc_macro2::{Ident, TokenStream};
-use quote::quote;
-use syn::{Expr, Lit, LitInt, Type};
+use quote::{quote, ToTokens};
+use syn::{Error, Expr, Lit, LitInt, LitStr, Type};
 
 #[derive(Debug)]
 pub struct RegistryDefinition {
     version: LitInt,
     properties: Vec<PropertyDefinition>,
+    registry_entries: Vec<PropertyDefinitionRaw>
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -39,6 +41,91 @@ struct ArrayProperty {
     elem: Box<PropertyDefinition>,
 }
 
+#[derive(Debug)]
+pub struct PropertyDefinitionRaw {
+    ident: Ident,
+    key: LitStr,
+    group: Ident,
+    attributes: Vec<Attr>,
+}
+
+impl PropertyDefinitionRaw {
+    fn new(ident: Ident, key: LitStr, group: Ident) -> Self {
+        PropertyDefinitionRaw {
+            ident,
+            key,
+            group,
+            attributes: vec![],
+        }
+    }
+
+    fn get_final_type(&self) -> syn::Result<syn::Type> {
+        match self.ident.to_string().as_str() {
+            "str_property" => {
+                #[cfg(feature = "std")]
+                {
+                    Ok(syn::parse_quote!(String))
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    let max_len = self.get_attr("max_len").ok_or(Error::new(
+                        self.ident.span(),
+                        "Missing max_len attribute for nostd String property",
+                    ))?;
+                    Ok(syn::parse_quote!(heapless::String<#max_len>))
+                }
+            }
+            "bool_property" => Ok(syn::parse_quote!(bool)),
+            "num_property" => {
+                let ty = self
+                    .get_attr("ty")
+                    .map(|ty| ty.into_token_stream())
+                    .unwrap_or(quote!(i32));
+                Ok(syn::parse_quote!(#ty))
+            }
+            "custom_property" => {
+                let ty = self.get_attr("ty").ok_or(Error::new(
+                    self.ident.span(),
+                    "Missing type attribute for custom property",
+                ))?;
+                Ok(syn::parse_quote!(#ty))
+            }
+            &_ => Err(Error::new(
+                self.ident.span(),
+                format!("Unknown property definition: {}", self.ident),
+            )),
+        }
+    }
+
+    fn is_custom_property(&self) -> bool {
+        self.ident.to_string().as_str() == "custom_property"
+    }
+
+    fn add_attr(&mut self, attr: Attr) {
+        self.attributes.push(attr);
+    }
+
+    fn get_attr(&self, attr: &str) -> Option<Expr> {
+        let result = self
+            .attributes
+            .iter()
+            .find(|a| a.ident.to_string().as_str() == attr);
+        result?.value.clone()
+    }
+}
+
+#[derive(Debug)]
+struct Attr {
+    ident: Ident,
+    value: Option<Expr>,
+}
+
+impl Attr {
+    fn new(ident: Ident, value: Option<Expr>) -> Self {
+        Attr { ident, value }
+    }
+}
+
 pub fn expand(input: RegistryDefinition) -> TokenStream {
     let expanded = input
         .properties
@@ -53,12 +140,56 @@ pub fn expand(input: RegistryDefinition) -> TokenStream {
         }
     });
 
+    let version = input.version;
+    let mut groups = HashSet::new();
+    let registry_entries: Vec<TokenStream> = input
+        .registry_entries
+        .iter()
+        .map(|entry| {
+            let key = &entry.key;
+            let group = &entry.group;
+            groups.insert(group);
+
+            let default_value = entry.get_attr("default");
+            let default_value_expand = match (entry.ident.to_string().as_str(), default_value) {
+                ("str_property", Some(default_value)) => {
+                    quote!(Some(figen::registry::Value::String(#default_value)))
+                }
+                ("bool_property", Some(default_value)) => {
+                    quote!(Some(figen::registry::Value::Bool(#default_value)))
+                }
+                ("num_property", Some(default_value)) => {
+                    quote!(Some(figen::registry::Value::Number(#default_value)))
+                }
+                _ => quote!(None),
+            };
+            quote!(figen::registry::RegistryEntry::new(#key, EntryType::#group, #default_value_expand))
+        }).collect();
+    let groups: Vec<TokenStream> = groups.iter().map(|g| {
+        quote!(#g)
+    }).collect();
+
     quote!(
         #(#expanded)*
 
         #(#defaults)*
+
+
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+        #[derive(Debug)]
+        pub enum EntryType {
+            #(
+                #groups,
+            )*
+        }
+
+        pub static REGISTRY: figen::registry::ConfigRegistry<EntryType> = figen::registry::ConfigRegistry::new(
+            #version,
+            &[
+                #(#registry_entries),*
+            ]
+        );
     )
-    .into()
 }
 
 fn expand_default(prop: &StructProperty) -> TokenStream {
@@ -369,6 +500,7 @@ impl RegistryDefinition {
         RegistryDefinition {
             version,
             properties: vec![],
+            registry_entries: vec![],
         }
     }
 
