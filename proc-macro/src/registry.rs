@@ -179,9 +179,7 @@ pub fn expand(input: RegistryDefinition) -> TokenStream {
         #(#expanded)*
 
         #(#defaults)*
-
-
-        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+        
         #[derive(#derive_serde Debug)]
         pub enum EntryType {
             #(
