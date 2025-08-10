@@ -14,7 +14,7 @@ serde_json = "1.0.142"
 
 [features]
 std = ["figen-proc-macros/std"]
-serde = []
+serde = ["figen-proc-macros/serde"]
 
 [profile.test]
 features = ["std", "serde"]

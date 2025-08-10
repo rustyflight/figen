@@ -140,6 +140,12 @@ pub fn expand(input: RegistryDefinition) -> TokenStream {
         }
     });
 
+    let derive_serde = if cfg!(feature = "serde") {
+        quote!(serde::Serialize, serde::Deserialize,)
+    } else {
+        quote!()
+    };
+
     let version = input.version;
     let mut groups = HashSet::new();
     let registry_entries: Vec<TokenStream> = input
@@ -176,7 +182,7 @@ pub fn expand(input: RegistryDefinition) -> TokenStream {
 
 
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-        #[derive(Debug)]
+        #[derive(#derive_serde Debug)]
         pub enum EntryType {
             #(
                 #groups,
