@@ -7,7 +7,7 @@ edition = "2021"
 heapless = "0.8.0"
 figen-proc-macros = {  path = "./proc-macro" }
 log = "0.4.27"
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.219", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 serde_json = "1.0.142"
