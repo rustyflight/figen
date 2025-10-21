@@ -84,8 +84,7 @@ dependencies = [
 [[package]]
 name = "heapless"
 version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1edcd5a338e64688fbdcb7531a846cfd3476a54784dcb918a0844682bc7ada5"
+source = "git+https://github.com/rustyflight/heapless.git?branch=box_support_raw#1dd28d32b970b1fb3403eec3dc4636686077d8df"
 dependencies = [
  "hash32",
  "stable_deref_trait",
