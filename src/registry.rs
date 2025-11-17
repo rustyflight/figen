@@ -1,5 +1,3 @@
-use serde::{Serialize, Serializer};
-
 #[cfg(feature = "std")]
 mod std {
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -56,7 +54,7 @@ pub use std::*;
 
 
 
-impl<E: Serialize> ConfigRegistry<E> {
+impl<E> ConfigRegistry<E> {
     #[cfg(not(feature = "std"))]
     pub const fn new(version: u32, entries: &'static [RegistryEntry<E>]) -> Self {
         Self {

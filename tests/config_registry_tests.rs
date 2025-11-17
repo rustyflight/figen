@@ -164,6 +164,7 @@ pub fn should_generate_registry() {
 }
 
 #[test]
+#[cfg(feature = "serde")]
 fn should_serialize_registry() {
     use registry2::*;
     #[cfg(feature = "std")]

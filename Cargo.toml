@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-heapless = { git = "https://github.com/rustyflight/heapless.git", branch = "box_support_raw" }
+heapless = { version = "0.9" }
 figen-proc-macros = {  path = "./proc-macro" }
 log = "0.4.27"
-serde = { version = "1.0.219", default-features = false, features = ["derive"] }
+serde = { version = "1", default-features = false, features = ["derive"], optional = true }
 lazy_static = {  version = "1.5.0", optional = true }
 
 [dev-dependencies]
@@ -15,7 +15,7 @@ serde_json = "1.0.142"
 
 [features]
 std = ["figen-proc-macros/std", "lazy_static"]
-serde = ["figen-proc-macros/serde"]
+serde = ["dep:serde", "figen-proc-macros/serde"]
 
 [profile.test]
 features = ["std", "serde"]
