@@ -1,9 +1,23 @@
 variables:
   BUILD_AGENT: $CI_REGISTRY/bkappz/build-agents
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  CARGO_TERM_COLOR: always
 
 default:
   tags:
     - linux
+  cache:
+    key:
+      files:
+        - Cargo.lock
+        - proc-macro/Cargo.lock
+      prefix: cargo-$CI_JOB_IMAGE
+    paths:
+      - .cargo/registry/index/
+      - .cargo/registry/cache/
+      - .cargo/git/db/
+      - .cargo/git/checkouts/
+    policy: pull-push
 
 stages:
   - build
@@ -24,6 +38,7 @@ rust::latest:
   coverage: '/TOTAL\s+(\d+\s+)+(\d+\.\d+\%)/'
   script:
     - "echo \"Running feature set: $FEATURE_NAME ($FEATURE_FLAGS)\""
+    - cargo fetch --locked
     - cargo build $FEATURE_FLAGS --verbose
     - cargo llvm-cov nextest --color=always $FEATURE_FLAGS
     - cargo llvm-cov report --cobertura --output-path target/llvm-cov-target/cobertura.xml
@@ -49,6 +64,7 @@ rust::nightly:
         FEATURE_FLAGS: "--no-default-features --features std --features serde"
   script:
     - "echo \"Running feature set: $FEATURE_NAME ($FEATURE_FLAGS)\""
+    - cargo fetch --locked
     - cargo build $FEATURE_FLAGS --verbose
     - cargo test $FEATURE_FLAGS --verbose
   allow_failure: true
