@@ -22,7 +22,7 @@ Embedded firmware often needs:
 - Default values and optional fields
 - Nested keys and indexed-array key support
 - Generated registry metadata with versioning
-- Custom property types via `TryFrom<&str>` + `config_binder!`
+- Custom property types via `TryFrom<&str>` + `#[derive(ConfigBinder)]`
 
 ## Quick example
 
@@ -83,9 +83,9 @@ mod board {
 ## Custom types
 
 ```rust
-use figen::{config_binder, config_registry};
+use figen::config_registry;
 
-#[derive(Default)]
+#[derive(figen::ConfigBinder, Default)]
 struct Gain(u16);
 
 impl TryFrom<&str> for Gain {
@@ -101,8 +101,6 @@ config_registry!(
     version = 1
     custom_property("control.gain", default = "42", ty = Gain)
 );
-
-config_binder!(Gain);
 ```
 
 ## Feature flags

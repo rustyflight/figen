@@ -6,14 +6,14 @@ use figen::BindPath;
 
 mod utils;
 
-#[derive(Default, Debug)]
+#[derive(figen::ConfigBinder, Default, Debug)]
 struct CustomType {
     value: i32,
 }
 
 mod registry1 {
     use super::CustomType;
-    use figen::{config_binder, config_registry};
+    use figen::config_registry;
 
     config_registry!(
         name = Group1Config
@@ -29,8 +29,6 @@ mod registry1 {
         str_property("deeply.nested.prop2", default = "def", max_len = 3)
         custom_property("custom_prop", default = "12", ty = CustomType)
     );
-
-    config_binder!(CustomType);
 }
 
 impl TryFrom<&str> for CustomType {

@@ -44,20 +44,25 @@
 //! You can also define custom types for your configuration properties. The `config_registry` macro allows
 //! you to specify a custom type for a property, and it will generate the necessary bindings for
 //! that type. The custom type must implement the `TryFrom<&str>` trait to convert the string value
-//! into the custom type. Once the type implements TryFrom a helper macro can be used to implement the `ConfigBinder` trait for it.
+//! into the custom type. Once the type implements `TryFrom<&str>`, derive `ConfigBinder` on the type.
 //!
 //! ## Example
 //! ```ignore
 //! use figen::config_registry;
 //!
+//! #[derive(figen::ConfigBinder)]
 //! struct CustomType {
 //!    field1: i32,
 //!    field2: bool,
 //! }
 //!
 //! impl TryFrom<&str> for CustomType {
-//!    fn from(value: &str) -> Self {
-//!      // Custom conversion logic from &str
+//!    type Error = &'static str;
+//!
+//!    fn try_from(value: &str) -> Result<Self, Self::Error> {
+//!      // Custom conversion logic from &str:
+//!      // parse `value` and return `Ok(CustomType { ... })` or `Err(...)`
+//!      unimplemented!()
 //!    }
 //! }
 //!
@@ -66,7 +71,6 @@
 //!    version = 1
 //!    custom_property("my_custom", default = "1,true", ty = CustomType)
 //! )
-//! config_binder!(CustomType);
 //! ```
 //!
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -85,6 +89,7 @@ use loader::PropertyLoader;
 // Re-export
 pub use crate::error::Result;
 pub use figen_proc_macros::expand_config_registry as config_registry;
+pub use figen_proc_macros::ConfigBinder;
 pub use figen_proc_macros::Configuration;
 
 pub trait BindPath {
@@ -216,27 +221,6 @@ macro_rules! str_ty {
 #[macro_export]
 macro_rules! str_ty {
     () => { heapless::String<32> };
-}
-
-#[macro_export]
-macro_rules! config_binder {
-    ($ty:ty) => {
-        impl<T, U> figen::binder::ConfigBinder<T, U> for $ty
-        where
-            T: figen::BindPath,
-            U: figen::loader::PropertyLoader,
-        {
-            fn bind(&mut self, path: &mut T, loader: &U) -> figen::Result<()> {
-                let key = path.current_path();
-                let value: figen::str_ty!() = loader.load_str_value(key)?;
-                *self = value
-                    .as_str()
-                    .try_into()
-                    .map_err(|_| figen::error::Error::ParseError)?;
-                Ok(())
-            }
-        }
-    };
 }
 
 #[cfg(not(feature = "std"))]

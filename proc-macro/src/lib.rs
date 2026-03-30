@@ -3,6 +3,7 @@ mod registry;
 use darling::{FromAttributes, FromMeta};
 use proc_macro::TokenStream;
 use quote::quote;
+use syn::parse_quote;
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, Data, Ident, LitStr, Type};
 
@@ -205,4 +206,39 @@ pub fn derive_configuration(input: TokenStream) -> TokenStream {
             }
         }
     ).into()
+}
+
+#[proc_macro_derive(ConfigBinder)]
+pub fn derive_config_binder(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    let ident = &input.ident;
+
+    let mut generics = input.generics.clone();
+    generics.params.push(parse_quote!(T));
+    generics.params.push(parse_quote!(U));
+    let where_clause = generics.make_where_clause();
+    where_clause.predicates.push(parse_quote!(T: figen::BindPath));
+    where_clause
+        .predicates
+        .push(parse_quote!(U: figen::loader::PropertyLoader));
+
+    let (impl_generics, _, where_clause) = generics.split_for_impl();
+    let (_, ty_generics, _) = input.generics.split_for_impl();
+
+    quote!(
+        impl #impl_generics figen::binder::ConfigBinder<T, U> for #ident #ty_generics
+        #where_clause
+        {
+            fn bind(&mut self, path: &mut T, loader: &U) -> figen::Result<()> {
+                let key = path.current_path();
+                let value: figen::str_ty!() = loader.load_str_value(key)?;
+                *self = value
+                    .as_str()
+                    .try_into()
+                    .map_err(|_| figen::error::Error::ParseError)?;
+                Ok(())
+            }
+        }
+    )
+    .into()
 }
