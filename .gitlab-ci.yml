@@ -23,7 +23,7 @@ rust::latest:
         FEATURE_FLAGS: "--no-default-features --features std --features serde"
   coverage: '/TOTAL\s+(\d+\s+)+(\d+\.\d+\%)/'
   script:
-    - echo "Running feature set: $FEATURE_NAME ($FEATURE_FLAGS)"
+    - "echo \"Running feature set: $FEATURE_NAME ($FEATURE_FLAGS)\""
     - cargo build $FEATURE_FLAGS --verbose
     - cargo llvm-cov nextest --color=always $FEATURE_FLAGS
     - cargo llvm-cov report --cobertura --output-path target/llvm-cov-target/cobertura.xml
@@ -48,7 +48,7 @@ rust::nightly:
       - FEATURE_NAME: "std-serde"
         FEATURE_FLAGS: "--no-default-features --features std --features serde"
   script:
-    - echo "Running feature set: $FEATURE_NAME ($FEATURE_FLAGS)"
+    - "echo \"Running feature set: $FEATURE_NAME ($FEATURE_FLAGS)\""
     - cargo build $FEATURE_FLAGS --verbose
     - cargo test $FEATURE_FLAGS --verbose
   allow_failure: true
