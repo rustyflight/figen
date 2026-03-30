@@ -26,9 +26,10 @@
 //! ```ignore
 //! use figen::config_registry;
 //! config_registry!(
+//!     name = MyGroupConfig
 //!     version = 1
-//!     str_property("my_str", MyGroup, default = "default_value", max_len = 10)
-//!     num_property("my_nested.prop", MyGroup, default = 42)
+//!     str_property("my_str", default = "default_value", max_len = 10)
+//!     num_property("my_nested.prop", default = 42)
 //! );
 //!
 //! fn main() {
@@ -61,8 +62,9 @@
 //! }
 //!
 //! config_registry!(
+//!    name = MyGroupConfig
 //!    version = 1
-//!    custom_property("my_custom", MyGroup, default = "1,true", ty = CustomType)
+//!    custom_property("my_custom", default = "1,true", ty = CustomType)
 //! )
 //! config_binder!(CustomType);
 //! ```
@@ -205,7 +207,9 @@ impl BindPath for StdBindPath {
 #[cfg(feature = "std")]
 #[macro_export]
 macro_rules! str_ty {
-    () => { std::string::String };
+    () => {
+        std::string::String
+    };
 }
 
 #[cfg(not(feature = "std"))]
@@ -218,23 +222,22 @@ macro_rules! str_ty {
 macro_rules! config_binder {
     ($ty:ty) => {
         impl<T, U> figen::binder::ConfigBinder<T, U> for $ty
-            where
+        where
             T: figen::BindPath,
-            U: figen::loader::PropertyLoader
+            U: figen::loader::PropertyLoader,
         {
             fn bind(&mut self, path: &mut T, loader: &U) -> figen::Result<()> {
                 let key = path.current_path();
                 let value: figen::str_ty!() = loader.load_str_value(key)?;
-                *self = value.as_str().try_into().map_err(|_| {
-                    figen::error::Error::ParseError
-                })?;
+                *self = value
+                    .as_str()
+                    .try_into()
+                    .map_err(|_| figen::error::Error::ParseError)?;
                 Ok(())
             }
         }
-    }
+    };
 }
-
-
 
 #[cfg(not(feature = "std"))]
 pub type BindPathImpl = NoStdBindPath<64>;

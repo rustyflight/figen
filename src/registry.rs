@@ -1,16 +1,16 @@
 #[cfg(feature = "std")]
 mod std {
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-    pub struct ConfigRegistry<E> {
+    pub struct ConfigRegistry {
         pub version: u32,
-        pub entries: Vec<RegistryEntry<E>>,
+        pub entries: Vec<RegistryEntry>,
     }
 
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-    pub struct RegistryEntry<E> {
+    pub struct RegistryEntry {
         pub key: String,
         pub default_value: Option<Value>,
-        pub entry_type: E,
+        pub value_kind: ValueKind,
     }
 
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -20,21 +20,30 @@ mod std {
         Number(i32),
         Boolean(bool),
     }
+
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Eq, PartialEq, Debug, Copy, Clone)]
+    pub enum ValueKind {
+        String,
+        Number,
+        Boolean,
+        Custom,
+    }
 }
 
 #[cfg(not(feature = "std"))]
 mod nostd {
     #[cfg_attr(feature = "serde", derive(serde::Serialize))]
-    pub struct ConfigRegistry<E: 'static> {
+    pub struct ConfigRegistry {
         pub version: u32,
-        pub entries: &'static [RegistryEntry<E>],
+        pub entries: &'static [RegistryEntry],
     }
 
     #[cfg_attr(feature = "serde", derive(serde::Serialize))]
-    pub struct RegistryEntry<E> {
+    pub struct RegistryEntry {
         pub key: &'static str,
         pub default_value: Option<Value>,
-        pub entry_type: E,
+        pub value_kind: ValueKind,
     }
 
     #[cfg_attr(feature = "serde", derive(serde::Serialize))]
@@ -44,6 +53,15 @@ mod nostd {
         Number(i32),
         Boolean(bool),
     }
+
+    #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+    #[derive(Eq, PartialEq, Debug, Copy, Clone)]
+    pub enum ValueKind {
+        String,
+        Number,
+        Boolean,
+        Custom,
+    }
 }
 
 #[cfg(not(feature = "std"))]
@@ -52,22 +70,14 @@ pub use nostd::*;
 #[cfg(feature = "std")]
 pub use std::*;
 
-
-
-impl<E> ConfigRegistry<E> {
+impl ConfigRegistry {
     #[cfg(not(feature = "std"))]
-    pub const fn new(version: u32, entries: &'static [RegistryEntry<E>]) -> Self {
-        Self {
-            version,
-            entries
-        }
+    pub const fn new(version: u32, entries: &'static [RegistryEntry]) -> Self {
+        Self { version, entries }
     }
     #[cfg(feature = "std")]
-    pub const fn new(version: u32, entries: Vec<RegistryEntry<E>>) -> Self {
-        Self {
-            version,
-            entries
-        }
+    pub const fn new(version: u32, entries: Vec<RegistryEntry>) -> Self {
+        Self { version, entries }
     }
 
     pub fn get_version(&self) -> u32 {
@@ -78,7 +88,7 @@ impl<E> ConfigRegistry<E> {
         self.entries.iter().any(|entry| entry.key == key)
     }
 
-    pub fn get_entry(&self, key: &str) -> Option<&RegistryEntry<E>> {
+    pub fn get_entry(&self, key: &str) -> Option<&RegistryEntry> {
         self.entries.iter().find(|entry| entry.key == key)
     }
 
@@ -91,26 +101,30 @@ impl<E> ConfigRegistry<E> {
         }
     }
 
-    pub fn iter_entries(&self) -> impl Iterator<Item = &RegistryEntry<E>> {
+    pub fn iter_entries(&self) -> impl Iterator<Item = &RegistryEntry> {
         self.entries.iter()
     }
 }
 
-impl<E> RegistryEntry<E> {
+impl RegistryEntry {
     #[cfg(not(feature = "std"))]
-    pub const fn new(key: &'static str, entry_type: E, default_value: Option<Value>) -> Self {
+    pub const fn new(
+        key: &'static str,
+        value_kind: ValueKind,
+        default_value: Option<Value>,
+    ) -> Self {
         Self {
             key,
             default_value,
-            entry_type,
+            value_kind,
         }
     }
     #[cfg(feature = "std")]
-    pub fn new(key: &'static str, entry_type: E, default_value: Option<Value>) -> Self {
+    pub fn new(key: &'static str, value_kind: ValueKind, default_value: Option<Value>) -> Self {
         Self {
             key: key.into(),
             default_value,
-            entry_type,
+            value_kind,
         }
     }
 }

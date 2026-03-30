@@ -1,7 +1,7 @@
-use crate::registry1::REGISTRY;
 use figen::binder::ConfigBinder;
 use figen::registry::Value::Number;
 use figen::registry::Value::String;
+use figen::registry::ValueKind;
 use figen::BindPath;
 
 mod utils;
@@ -16,17 +16,18 @@ mod registry1 {
     use figen::{config_binder, config_registry};
 
     config_registry!(
+        name = Group1Config
         version = 1
 
-        str_property("str_prop", Group1, default = "abc", max_len = 4)
-        num_property("num_prop", Group1, default = 42)
-        num_property("array_prop[0]", Group1, default = 1)
-        num_property("array_prop[1]", Group1, default = 2)
-        num_property("array_prop[custom]", Group1, default = 2)
-        str_property("optional_str_prop", Group1, max_len = 4, optional)
-        num_property("deeply.nested.prop", Group1, default = 100)
-        str_property("deeply.nested.prop2", Group1, default = "def", max_len = 3)
-        custom_property("custom_prop", Group1, default = "12", ty = CustomType)
+        str_property("str_prop", default = "abc", max_len = 4)
+        num_property("num_prop", default = 42)
+        num_property("array_prop[0]", default = 1)
+        num_property("array_prop[1]", default = 2)
+        num_property("array_prop[custom]", default = 2)
+        str_property("optional_str_prop", max_len = 4, optional)
+        num_property("deeply.nested.prop", default = 100)
+        str_property("deeply.nested.prop2", default = "def", max_len = 3)
+        custom_property("custom_prop", default = "12", ty = CustomType)
     );
 
     config_binder!(CustomType);
@@ -85,13 +86,14 @@ mod registry2 {
     use figen::config_registry;
 
     config_registry!(
+        name = TestPathConfig
         version = 1
 
-        num_property("field1", TestPath, default = 0)
-        bool_property("field2.field.enabled", TestPath, optional, detaul = true)
-        str_property("field2.field.aux", TestPath, optional, max_len = 8, default = "aux")
-        num_property("field2.field.threshold", TestPath, optional, ty = u8)
-        num_property("field3", TestPath, default = 30, ty = u16)
+        num_property("field1", default = 0)
+        bool_property("field2.field.enabled", optional, detaul = true)
+        str_property("field2.field.aux", optional, max_len = 8, default = "aux")
+        num_property("field2.field.threshold", optional, ty = u8)
+        num_property("field3", default = 30, ty = u16)
     );
 }
 
@@ -126,7 +128,7 @@ pub fn path_should_be_empty_on_ok() {
 pub fn should_generate_registry() {
     use registry2::*;
 
-    let reg = &REGISTRY;
+    let reg = &TEST_PATH_CONFIG_REGISTRY;
 
     assert_eq!(reg.get_version(), 1, "Registry version should be 1");
     assert!(
@@ -161,6 +163,26 @@ pub fn should_generate_registry() {
     );
     assert_eq!(reg.get_default_value("field2.field.threshold"), None);
     assert_eq!(reg.get_default_value("field3"), Some(Number(30)).as_ref());
+
+    assert_eq!(
+        reg.get_entry("field1").map(|entry| entry.value_kind),
+        Some(ValueKind::Number)
+    );
+    assert_eq!(
+        reg.get_entry("field2.field.enabled")
+            .map(|entry| entry.value_kind),
+        Some(ValueKind::Boolean)
+    );
+    assert_eq!(
+        reg.get_entry("field2.field.aux")
+            .map(|entry| entry.value_kind),
+        Some(ValueKind::String)
+    );
+    assert_eq!(
+        reg.get_entry("field2.field.threshold")
+            .map(|entry| entry.value_kind),
+        Some(ValueKind::Number)
+    );
 }
 
 #[test]
@@ -168,10 +190,9 @@ pub fn should_generate_registry() {
 fn should_serialize_registry() {
     use registry2::*;
     #[cfg(feature = "std")]
-    let config_registry = &*REGISTRY;
+    let config_registry = &*TEST_PATH_CONFIG_REGISTRY;
     #[cfg(not(feature = "std"))]
-    let config_registry = &REGISTRY;
-
+    let config_registry = &TEST_PATH_CONFIG_REGISTRY;
 
     let serialized = serde_json::to_string(config_registry).expect("Failed to serialize registry");
 

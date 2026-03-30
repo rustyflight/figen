@@ -35,7 +35,10 @@ fn should_attempt_to_load_keys() {
         "custom_indexed[i1]".to_string(),
         "custom_indexed[i2]".to_string(),
     ];
-    assert_eq!(attempted_keys, expected_keys, "The keys attempted to load do not match the expected keys.");
+    assert_eq!(
+        attempted_keys, expected_keys,
+        "The keys attempted to load do not match the expected keys."
+    );
 }
 
 #[test]
@@ -62,7 +65,6 @@ fn should_load_config_values() {
     assert_eq!(config.custom_indexed[1], 40);
 }
 
-
 #[derive(Configuration, Debug, Default)]
 struct TestConfig {
     #[property] // no default value
@@ -81,7 +83,15 @@ fn should_err_when_required_property_missing() {
 
     let result: figen::Result<TestConfig> = figen::load_config(&loader);
 
-    assert!(result.is_err(), "Expected an error when required property is missing and no default provided");
+    assert!(
+        result.is_err(),
+        "Expected an error when required property is missing and no default provided"
+    );
     let err = result.unwrap_err();
-    assert_eq!(err, figen::error::Error::Required, "Expected Required error, got {:?}", err);
+    assert_eq!(
+        err,
+        figen::error::Error::Required,
+        "Expected Required error, got {:?}",
+        err
+    );
 }

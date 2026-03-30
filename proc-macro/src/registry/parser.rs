@@ -1,20 +1,67 @@
 use crate::registry::{ArrayProperty, PropertyDefinition, ScalarProperty, StructProperty};
 use crate::registry::{Attr, PropertyDefinitionRaw, RegistryDefinition};
 use proc_macro2::{Ident, Span};
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::{Error, Expr, Lit, LitInt, LitStr, Token};
 
 impl Parse for RegistryDefinition {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let _: Ident = input.parse()?;
-        let _ = input.parse::<Token![=]>()?;
-        let version: LitInt = input.parse()?;
+        let mut registry_name: Option<Ident> = None;
+        let mut version: Option<LitInt> = None;
 
-        let mut registry_def = RegistryDefinition::new(version);
+        while !input.is_empty() {
+            let fork = input.fork();
+            let _ = fork.parse::<Ident>()?;
+            if fork.parse::<Token![=]>().is_err() {
+                break;
+            }
+
+            let header_key: Ident = input.parse()?;
+            let _ = input.parse::<Token![=]>()?;
+
+            match header_key.to_string().as_str() {
+                "name" => {
+                    if registry_name.is_some() {
+                        return Err(Error::new(
+                            header_key.span(),
+                            "Duplicate `name` header in config_registry!",
+                        ));
+                    }
+                    registry_name = Some(input.parse()?);
+                }
+                "version" => {
+                    if version.is_some() {
+                        return Err(Error::new(
+                            header_key.span(),
+                            "Duplicate `version` header in config_registry!",
+                        ));
+                    }
+                    version = Some(input.parse()?);
+                }
+                _ => {
+                    return Err(Error::new(
+                        header_key.span(),
+                        "Unknown config_registry! header; supported headers are `name` and `version`",
+                    ));
+                }
+            }
+        }
+
+        let registry_name = registry_name.ok_or(Error::new(
+            input.span(),
+            "Missing required `name = <Ident>` header in config_registry!",
+        ))?;
+        let version = version.ok_or(Error::new(
+            input.span(),
+            "Missing required `version = <integer>` header in config_registry!",
+        ))?;
+
+        let mut registry_def = RegistryDefinition::new(registry_name.clone(), version);
         while !input.is_empty() {
             // Parse the property definition and append it to the registry
-            let ParsedPropertyDefinition(prop_def, raw_def) = input.parse()?;
+            let ParsedPropertyDefinition(prop_def, raw_def) =
+                ParsedPropertyDefinition::parse_with_name(input, &registry_name)?;
 
             registry_def.push(prop_def)?;
             registry_def.registry_entries.push(raw_def);
@@ -24,8 +71,8 @@ impl Parse for RegistryDefinition {
     }
 }
 
-impl Parse for ParsedPropertyDefinition {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
+impl ParsedPropertyDefinition {
+    fn parse_with_name(input: ParseStream, registry_name: &Ident) -> syn::Result<Self> {
         // Parse the raw definition as defined in the macro
         let ident: Ident = input.parse()?;
         let span = ident.span();
@@ -35,10 +82,8 @@ impl Parse for ParsedPropertyDefinition {
 
         let key_lit = content.parse::<LitStr>()?;
         let key_span = key_lit.span();
-        let _ = content.parse::<Token![,]>()?;
-        let group = content.parse::<syn::Ident>()?;
 
-        let mut raw_definition = PropertyDefinitionRaw::new(ident, key_lit, group);
+        let mut raw_definition = PropertyDefinitionRaw::new(ident, key_lit);
 
         // Check for optional attributes
         let lookahead = content.lookahead1();
@@ -117,8 +162,8 @@ impl Parse for ParsedPropertyDefinition {
             }
         }
 
-        // Create root Struct based on property group so grouped scalar values can be defined
-        let mut root = StructProperty::new(raw_definition.group.clone());
+        // Create root Struct based on the macro-level registry name.
+        let mut root = StructProperty::new_root(registry_name.clone());
         root.add_field(prop_def);
 
         Ok(ParsedPropertyDefinition(

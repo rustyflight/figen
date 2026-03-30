@@ -2,11 +2,11 @@ mod parser;
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
-use std::collections::HashSet;
 use syn::{Error, Expr, Lit, LitInt, LitStr, Type};
 
 #[derive(Debug)]
 pub struct RegistryDefinition {
+    name: Ident,
     version: LitInt,
     properties: Vec<PropertyDefinition>,
     registry_entries: Vec<PropertyDefinitionRaw>,
@@ -45,16 +45,14 @@ struct ArrayProperty {
 pub struct PropertyDefinitionRaw {
     ident: Ident,
     key: LitStr,
-    group: Ident,
     attributes: Vec<Attr>,
 }
 
 impl PropertyDefinitionRaw {
-    fn new(ident: Ident, key: LitStr, group: Ident) -> Self {
+    fn new(ident: Ident, key: LitStr) -> Self {
         PropertyDefinitionRaw {
             ident,
             key,
-            group,
             attributes: vec![],
         }
     }
@@ -94,10 +92,6 @@ impl PropertyDefinitionRaw {
         }
     }
 
-    fn is_custom_property(&self) -> bool {
-        self.ident.to_string().as_str() == "custom_property"
-    }
-
     fn add_attr(&mut self, attr: Attr) {
         self.attributes.push(attr);
     }
@@ -131,47 +125,47 @@ pub fn expand(input: RegistryDefinition) -> TokenStream {
         }
     });
 
-    let derive_serde = if cfg!(feature = "serde") {
-        quote!(serde::Serialize, serde::Deserialize,)
-    } else {
-        quote!()
-    };
-
+    let registry_name = format!(
+        "{}_REGISTRY",
+        stringcase::snake_case(input.name.to_string().as_str()).to_uppercase()
+    );
+    let registry_ident = Ident::new(registry_name.as_str(), input.name.span());
     let version = input.version;
-    let mut groups = HashSet::new();
     let registry_entries: Vec<TokenStream> = input.registry_entries.iter().map(|entry| {
         let key = &entry.key;
-        let group = &entry.group;
-        groups.insert(group);
 
         let default_value = entry.get_attr("default");
-        let default_value_expand = match (entry.ident.to_string().as_str(), default_value) {
+        let (value_kind_expand, default_value_expand) = match (entry.ident.to_string().as_str(), default_value) {
             ("str_property", Some(default_value)) => {
-                if cfg!(feature = "std") {
+                let default_value_expand = if cfg!(feature = "std") {
                     quote!(Some(figen::registry::Value::String(#default_value.into())))
                 } else {
                     quote!(Some(figen::registry::Value::String(#default_value)))
-                }
+                };
+                (quote!(figen::registry::ValueKind::String), default_value_expand)
             }
-            ("bool_property", Some(default_value)) => {
-                quote!(Some(figen::registry::Value::Boolean(#default_value)))
-            }
-            ("num_property", Some(default_value)) => {
-                quote!(Some(figen::registry::Value::Number(#default_value)))
-            }
-            _ => quote!(None),
+            ("str_property", None) => (quote!(figen::registry::ValueKind::String), quote!(None)),
+            ("bool_property", Some(default_value)) => (
+                quote!(figen::registry::ValueKind::Boolean),
+                quote!(Some(figen::registry::Value::Boolean(#default_value))),
+            ),
+            ("bool_property", None) => (quote!(figen::registry::ValueKind::Boolean), quote!(None)),
+            ("num_property", Some(default_value)) => (
+                quote!(figen::registry::ValueKind::Number),
+                quote!(Some(figen::registry::Value::Number(#default_value))),
+            ),
+            ("num_property", None) => (quote!(figen::registry::ValueKind::Number), quote!(None)),
+            ("custom_property", _) => (quote!(figen::registry::ValueKind::Custom), quote!(None)),
+            _ => (quote!(figen::registry::ValueKind::Custom), quote!(None)),
         };
-        quote!(figen::registry::RegistryEntry::new(#key, EntryType::#group, #default_value_expand))
-    }).collect();
-    let groups: Vec<TokenStream> = groups.iter().map(|g| {
-        quote!(#g)
+        quote!(figen::registry::RegistryEntry::new(#key, #value_kind_expand, #default_value_expand))
     }).collect();
 
     let registry_expand = if cfg!(feature = "std") {
         // STD feature enabled, use Vec for registry entries which requires slightly different declaration
         quote!(
             lazy_static::lazy_static!{
-                pub static ref REGISTRY: figen::registry::ConfigRegistry<EntryType> = figen::registry::ConfigRegistry::new(
+                pub static ref #registry_ident: figen::registry::ConfigRegistry = figen::registry::ConfigRegistry::new(
                 #version,
                 vec![
                     #(#registry_entries),*
@@ -181,7 +175,7 @@ pub fn expand(input: RegistryDefinition) -> TokenStream {
         )
     } else {
         quote!(
-            pub static REGISTRY: figen::registry::ConfigRegistry<EntryType> = figen::registry::ConfigRegistry::new(
+            pub static #registry_ident: figen::registry::ConfigRegistry = figen::registry::ConfigRegistry::new(
                 #version,
                 &[
                     #(#registry_entries),*
@@ -194,13 +188,6 @@ pub fn expand(input: RegistryDefinition) -> TokenStream {
         #(#expanded)*
 
         #(#defaults)*
-
-        #[derive(#derive_serde Debug)]
-        pub enum EntryType {
-            #(
-                #groups,
-            )*
-        }
 
         #registry_expand
     )
@@ -490,6 +477,15 @@ impl StructProperty {
         }
     }
 
+    pub fn new_root(ty_ident: Ident) -> Self {
+        let ty: Type = syn::parse2(quote!(#ty_ident)).expect("Failed to parse root type");
+        StructProperty {
+            ident: ty_ident.clone(),
+            ty,
+            fields: vec![],
+        }
+    }
+
     pub fn add_field(&mut self, property: PropertyDefinition) {
         self.fields.push(property);
     }
@@ -506,8 +502,9 @@ impl ArrayProperty {
 }
 
 impl RegistryDefinition {
-    fn new(version: LitInt) -> Self {
+    fn new(name: Ident, version: LitInt) -> Self {
         RegistryDefinition {
+            name,
             version,
             properties: vec![],
             registry_entries: vec![],

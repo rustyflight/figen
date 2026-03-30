@@ -13,10 +13,19 @@ rust::latest:
   image: $BUILD_AGENT/rust:latest
   parallel:
     matrix:
-      - FEATURES: [ "--features serde", "--features std --features serde" ]
+      - FEATURE_NAME: "no-default"
+        FEATURE_FLAGS: "--no-default-features"
+      - FEATURE_NAME: "serde"
+        FEATURE_FLAGS: "--no-default-features --features serde"
+      - FEATURE_NAME: "std"
+        FEATURE_FLAGS: "--no-default-features --features std"
+      - FEATURE_NAME: "std-serde"
+        FEATURE_FLAGS: "--no-default-features --features std --features serde"
   coverage: '/TOTAL\s+(\d+\s+)+(\d+\.\d+\%)/'
   script:
-    - cargo llvm-cov nextest --color=always $FEATURES
+    - echo "Running feature set: $FEATURE_NAME ($FEATURE_FLAGS)"
+    - cargo build $FEATURE_FLAGS --verbose
+    - cargo llvm-cov nextest --color=always $FEATURE_FLAGS
     - cargo llvm-cov report --cobertura --output-path target/llvm-cov-target/cobertura.xml
   artifacts:
     reports:
@@ -30,8 +39,16 @@ rust::nightly:
   image: rustlang/rust:nightly
   parallel:
     matrix:
-      - FEATURES: [ "--features serde", "--features std --features serde" ]
+      - FEATURE_NAME: "no-default"
+        FEATURE_FLAGS: "--no-default-features"
+      - FEATURE_NAME: "serde"
+        FEATURE_FLAGS: "--no-default-features --features serde"
+      - FEATURE_NAME: "std"
+        FEATURE_FLAGS: "--no-default-features --features std"
+      - FEATURE_NAME: "std-serde"
+        FEATURE_FLAGS: "--no-default-features --features std --features serde"
   script:
-    - cargo build $FEATURES --verbose
-    - cargo test $FEATURES --verbose
+    - echo "Running feature set: $FEATURE_NAME ($FEATURE_FLAGS)"
+    - cargo build $FEATURE_FLAGS --verbose
+    - cargo test $FEATURE_FLAGS --verbose
   allow_failure: true

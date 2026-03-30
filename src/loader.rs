@@ -23,4 +23,3 @@ pub trait PropertyLoader {
     /// or `NotFound` if the key does not exist.
     fn load_bool_value(&self, key: &str) -> Result<bool>;
 }
-
