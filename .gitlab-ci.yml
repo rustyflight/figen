@@ -21,6 +21,7 @@ default:
 
 stages:
   - build
+  - deploy
 
 rust::latest:
   stage: build
@@ -68,3 +69,19 @@ rust::nightly:
     - cargo build $FEATURE_FLAGS --verbose
     - cargo test $FEATURE_FLAGS --verbose
   allow_failure: true
+
+pages:
+  stage: deploy
+  image: $BUILD_AGENT/rust:latest
+  script:
+    - cargo fetch --locked
+    - cargo doc --no-deps --no-default-features --features "std serde" -p figen
+    - rm -rf public
+    - mkdir -p public
+    - cp -r target/doc/* public/
+    - printf '<meta http-equiv="refresh" content="0; url=figen/index.html">' > public/index.html
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
