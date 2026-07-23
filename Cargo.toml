@@ -2,11 +2,20 @@
 name = "figen"
 version = "0.1.0"
 edition = "2021"
+description = "Strongly typed configuration bindings and registries generated from a declarative schema"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/rustyflight/figen"
+homepage = "https://github.com/rustyflight/figen"
+documentation = "https://docs.rs/figen"
+readme = "README.md"
+keywords = ["configuration", "embedded", "no-std", "macros"]
+categories = ["config", "embedded", "no-std"]
+publish = ["crates-io"]
+exclude = [".idea/**", "docs/plans/**"]
 
 [dependencies]
 heapless = { version = "0.9" }
-figen-proc-macros = {  path = "./proc-macro" }
+figen-proc-macros = { version = "=0.1.0", path = "./proc-macro" }
 log = "0.4.27"
 serde = { version = "1", default-features = false, features = ["derive"], optional = true }
 lazy_static = {  version = "1.5.0", optional = true }

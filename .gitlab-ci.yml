@@ -22,6 +22,8 @@ default:
 stages:
   - build
   - deploy
+  - release-validate
+  - release
 
 rust::latest:
   stage: build
@@ -82,3 +84,41 @@ pages:
       - public
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+release:validate:
+  stage: release-validate
+  image: $BUILD_AGENT/rust:latest
+  script:
+    - scripts/check-release-version.sh "$CI_COMMIT_TAG"
+    - cargo publish --dry-run --locked --manifest-path proc-macro/Cargo.toml
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+
+release:publish:
+  stage: release
+  image: $BUILD_AGENT/rust:latest
+  needs:
+    - job: release:validate
+  resource_group: crates-io
+  environment:
+    name: crates.io
+  script:
+    - |
+      if publish_output=$(cargo publish --locked --manifest-path proc-macro/Cargo.toml 2>&1); then
+        printf '%s\n' "$publish_output"
+      else
+        publish_status=$?
+        printf '%s\n' "$publish_output" >&2
+        expected_duplicate="crate figen-proc-macros@${CI_COMMIT_TAG#v} already exists on crates.io index"
+
+        if printf '%s\n' "$publish_output" | grep -Fq "$expected_duplicate"; then
+          echo "figen-proc-macros is already published; continuing with figen"
+        else
+          exit "$publish_status"
+        fi
+      fi
+    - cargo publish --locked
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: manual
+  allow_failure: false

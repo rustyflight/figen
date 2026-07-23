@@ -2,6 +2,15 @@
 name = "figen-proc-macros"
 version = "0.1.0"
 edition = "2021"
+description = "Procedural macro implementation for the figen configuration library"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rustyflight/figen"
+homepage = "https://github.com/rustyflight/figen"
+documentation = "https://docs.rs/figen-proc-macros"
+readme = "README.md"
+keywords = ["configuration", "embedded", "macros"]
+categories = ["config"]
+publish = ["crates-io"]
 
 [lib]
 proc-macro = true
