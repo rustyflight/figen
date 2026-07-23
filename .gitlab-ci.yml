@@ -39,7 +39,6 @@ rust::latest:
   coverage: '/TOTAL\s+(\d+\s+)+(\d+\.\d+\%)/'
   script:
     - "echo \"Running feature set: $FEATURE_NAME ($FEATURE_FLAGS)\""
-    - cargo fetch --locked
     - cargo build $FEATURE_FLAGS --verbose
     - cargo llvm-cov nextest --color=always $FEATURE_FLAGS
     - cargo llvm-cov report --cobertura --output-path target/llvm-cov-target/cobertura.xml
@@ -65,7 +64,6 @@ rust::nightly:
         FEATURE_FLAGS: "--no-default-features --features std --features serde"
   script:
     - "echo \"Running feature set: $FEATURE_NAME ($FEATURE_FLAGS)\""
-    - cargo fetch --locked
     - cargo build $FEATURE_FLAGS --verbose
     - cargo test $FEATURE_FLAGS --verbose
   allow_failure: true
@@ -74,7 +72,6 @@ pages:
   stage: deploy
   image: $BUILD_AGENT/rust:latest
   script:
-    - cargo fetch --locked
     - cargo doc --no-deps --no-default-features --features "std serde" -p figen
     - rm -rf public
     - mkdir -p public
