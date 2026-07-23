@@ -6,7 +6,7 @@
 //! The following example demonstrates how to define a configuration structure using the `Configuration` derive macro and load it using a custom property loader.
 //! The `Configuration` derive macro automatically generates the necessary bindings for the configuration fields, allowing you to easily manage and load configurations from various sources.
 //! ```ignore
-//! use figen::{Configuration, load_config};
+//! use figen::Configuration;
 //!
 //! #[derive(Configuration, Debug, Default)]
 //! struct MyConfig {
@@ -16,7 +16,7 @@
 //!
 //! fn main() {
 //!     let loader = MyPropertyLoader::new(); // Implement your own PropertyLoader
-//!     let config: MyConfig = load.config(&loader)
+//!     let config: MyConfig = figen::load_config(&loader)
 //!         .expect("Failed to load configuration");
 //!     println!("{:?}", config);
 //! }
@@ -25,6 +25,7 @@
 //! A more typical usage would involve using the `config_registry` macro to define a configuration registry, which also generates the necessary bindings and structs for you.
 //! ```ignore
 //! use figen::config_registry;
+//!
 //! config_registry!(
 //!     name = MyGroupConfig
 //!     version = 1
